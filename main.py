@@ -2490,7 +2490,8 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
                 parse_mode='HTML',
                 reply_markup=back_to_menu_keyboard()
             )
-
+        elif q.data == "quest_menu":
+            await enhanced_quest_menu(update, context)
         elif q.data == "snowfall":
             await animated_snowfall(update, context)
             
