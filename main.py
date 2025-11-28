@@ -167,7 +167,7 @@ def add_reindeer_exp(user_id, amount):
 def add_achievement(user_id, achievement_key):
     init_user_data(user_id)
     if achievement_key not in user_data[str(user_id)]["achievements"]:
-        user_data[str(user.id)]["achievements"].append(achievement_key)
+        user_data[str(user_id)]["achievements"].append(achievement_key)  # Было user.id вместо user_id
         add_santa_points(user_id, 50)
 
 # -------------------------------------------------------------------
@@ -1788,8 +1788,15 @@ async def quest_gift_rescue(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # 🦌 Квест: Поиск пропавших оленей
 async def quest_lost_reindeer(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
+    
+     q = update.callback_query
     await q.answer()
+    
+    # Инициализация квеста
+    context.user_data["lost_reindeer"] = {
+        "step": 1,
+        "found_reindeer": 0
+    }
     
     story = """
 🦌 <b>Поиск пропавших оленей</b>
@@ -1815,8 +1822,14 @@ async def quest_grinch_castle(update: Update, context: ContextTypes.DEFAULT_TYPE
     q = update.callback_query
     await q.answer()
     
+    # Инициализация квеста
+    context.user_data["grinch_castle"] = {
+        "step": 1
+    }
+    
     story = """
 🏰 <b>Штурм замка Гринча</b>
+# ... остальной код без изменений
 
 Финальная битва! Замок Гринча защищён ледяными стенами и сторожевыми башнями.
 
@@ -1860,7 +1873,8 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     
     # Определяем текущий активный квест
     active_quest = None
-    for quest in ["frozen_runes", "gift_rescue"]:
+    quest_keys = ["frozen_runes", "gift_rescue", "lost_reindeer", "grinch_castle"]
+    for quest in quest_keys:
         if quest in context.user_data:
             active_quest = quest
             break
@@ -1868,6 +1882,7 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     result = ""
     points_earned = 0
     exp_earned = 0
+    
     
     if active_quest == "frozen_runes":
         quest_data = context.user_data["frozen_runes"]
