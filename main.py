@@ -1624,12 +1624,11 @@ async def enhanced_quest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
     user = update.effective_user
     init_user_data(user.id)
     
-    quests_info = f"""
+    quests_info = """
 🏔️ <b>Эпические новогодние квесты!</b>
 
 ✨ <b>Твои квесты:</b>
-• Пройдено: {user_data[str(user.id)]['quests_finished']}
-• Активные: {len(context.user_data.get('active_quests', {}))}
+• Пройдено: {}
 
 🎁 <b>Награды за квесты:</b>
 • Очки Санты 🎅 (50-300 очков)
@@ -1638,59 +1637,21 @@ async def enhanced_quest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
 • Уникальные достижения 🏆
 
 🎄 <b>Доступные квесты:</b>
-"""
+""".format(user_data[str(user.id)]['quests_finished'])
 
-    quests = [
-        {
-            "name": "❄️ Поиск замерзших рун", 
-            "id": "frozen_runes", 
-            "difficulty": "⚡⚡", 
-            "reward": "100 очков + 30 опыта",
-            "description": "Найди 5 магических рун в Зачарованном лесу"
-        },
-        {
-            "name": "🎁 Спасение подарков", 
-            "id": "gift_rescue", 
-            "difficulty": "⚡⚡⚡", 
-            "reward": "150 очков + 50 опыта",
-            "description": "Верни подарки, украденные Гринчем"
-        },
-        {
-            "name": "🦌 Поиск пропавших оленей", 
-            "id": "lost_reindeer", 
-            "difficulty": "⚡⚡⚡⚡", 
-            "reward": "200 очков + 80 опыта",
-            "description": "Найди 3 потерявшихся оленей Санты"
-        },
-        {
-            "name": "🏰 Штурм замка Гринча", 
-            "id": "grinch_castle", 
-            "difficulty": "⚡⚡⚡⚡⚡", 
-            "reward": "300 очков + 120 опыта",
-            "description": "Эпичная битва в логове Гринча!"
-        }
+    keyboard = [
+        [InlineKeyboardButton("❄️ Поиск рун", callback_data="quest_start_frozen_runes")],
+        [InlineKeyboardButton("🎁 Спасение подарков", callback_data="quest_start_gift_rescue")],
+        [InlineKeyboardButton("🦌 Поиск оленей", callback_data="quest_start_lost_reindeer")],
+        [InlineKeyboardButton("🏰 Штурм замка", callback_data="quest_start_grinch_castle")],
+        [InlineKeyboardButton("⬅️ Назад", callback_data="back_menu")]
     ]
     
-    keyboard = []
-    for quest in quests:
-        # Проверяем, завершен ли уже квест
-        quest_key = f"quest_{quest['id']}_completed"
-        status = " ✅" if quest_key in user_data[str(user.id)].get("achievements", []) else ""
-        
-        keyboard.append([InlineKeyboardButton(
-            f"{quest['name']} {quest['difficulty']}{status}", 
-            callback_data=f"quest_start_{quest['id']}"
-        )])
-    
-    keyboard.append([InlineKeyboardButton("📊 Мои достижения", callback_data="quest_achievements")])
-    keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="back_menu")])
-    
     await update.callback_query.edit_message_text(
-        quests_info,
+        "🏔️ <b>Выбери квест:</b>",
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-    
 # 🎯 Квест: Поиск замерзших рун (многошаговый)
 async def quest_frozen_runes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
