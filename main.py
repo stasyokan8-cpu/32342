@@ -167,9 +167,8 @@ def add_reindeer_exp(user_id, amount):
 def add_achievement(user_id, achievement_key):
     init_user_data(user_id)
     if achievement_key not in user_data[str(user_id)]["achievements"]:
-        user_data[str(user_id)]["achievements"].append(achievement_key)  # Было user.id вместо user_id
+        user_data[str(user_id)]["achievements"].append(achievement_key)  # Исправлено с user.id на user_id
         add_santa_points(user_id, 50)
-
 # -------------------------------------------------------------------
 # 🎁 РАЗДЕЛ: ГЕНЕРАТОР ИДЕЙ ПОДАРКОВ (РАСШИРЕННЫЙ)
 # -------------------------------------------------------------------
@@ -343,6 +342,9 @@ async def wish_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.callback_query:
+        return
+        
     data = load_data()
     user = update.effective_user
 
@@ -467,6 +469,10 @@ async def join_room_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["join_mode"] = True
 
 async def join_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Если нет сообщения (только callback), выходим
+    if not update.message:
+        return
+        
     data = load_data()
     user = update.effective_user
     
@@ -1788,8 +1794,7 @@ async def quest_gift_rescue(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # 🦌 Квест: Поиск пропавших оленей
 async def quest_lost_reindeer(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    
-     q = update.callback_query
+    q = update.callback_query
     await q.answer()
     
     # Инициализация квеста
@@ -1816,7 +1821,6 @@ async def quest_lost_reindeer(update: Update, context: ContextTypes.DEFAULT_TYPE
     ]
     
     await q.edit_message_text(story, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
-
 # 🏰 Квест: Штурм замка Гринча
 async def quest_grinch_castle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
