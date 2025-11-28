@@ -1690,7 +1690,7 @@ async def enhanced_quest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-
+    
 # 🎯 Квест: Поиск замерзших рун (многошаговый)
 async def quest_frozen_runes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
