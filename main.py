@@ -167,8 +167,9 @@ def add_reindeer_exp(user_id, amount):
 def add_achievement(user_id, achievement_key):
     init_user_data(user_id)
     if achievement_key not in user_data[str(user_id)]["achievements"]:
-        user_data[str(user_id)]["achievements"].append(achievement_key)  # Исправлено с user.id на user_id
+        user_data[str(user_id)]["achievements"].append(achievement_key)
         add_santa_points(user_id, 50)
+
 # -------------------------------------------------------------------
 # 🎁 РАЗДЕЛ: ГЕНЕРАТОР ИДЕЙ ПОДАРКОВ (РАСШИРЕННЫЙ)
 # -------------------------------------------------------------------
@@ -1624,11 +1625,11 @@ async def enhanced_quest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
     user = update.effective_user
     init_user_data(user.id)
     
-    quests_info = """
+    quests_info = f"""
 🏔️ <b>Эпические новогодние квесты!</b>
 
 ✨ <b>Твои квесты:</b>
-• Пройдено: {}
+• Пройдено: {user_data[str(user.id)]['quests_finished']}
 
 🎁 <b>Награды за квесты:</b>
 • Очки Санты 🎅 (50-300 очков)
@@ -1637,7 +1638,7 @@ async def enhanced_quest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
 • Уникальные достижения 🏆
 
 🎄 <b>Доступные квесты:</b>
-""".format(user_data[str(user.id)]['quests_finished'])
+"""
 
     keyboard = [
         [InlineKeyboardButton("❄️ Поиск рун", callback_data="quest_start_frozen_runes")],
@@ -1648,11 +1649,12 @@ async def enhanced_quest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
     ]
     
     await update.callback_query.edit_message_text(
-        "🏔️ <b>Выбери квест:</b>",
+        quests_info,
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-# 🎯 Квест: Поиск замерзших рун (многошаговый)
+
+# 🎯 Квест: Поиск замерзших рун
 async def quest_frozen_runes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -1661,13 +1663,12 @@ async def quest_frozen_runes(update: Update, context: ContextTypes.DEFAULT_TYPE)
     init_user_data(user.id)
     
     # Инициализация квеста
-    if "frozen_runes" not in context.user_data:
-        context.user_data["frozen_runes"] = {
-            "step": 1,
-            "found_runes": 0,
-            "attempts": 0,
-            "locations": ["Снежный храм", "Ледяная пещера", "Замерзшее озеро", "Волшебный лес", "Гора духов"]
-        }
+    context.user_data["frozen_runes"] = {
+        "step": 1,
+        "found_runes": 0,
+        "attempts": 0,
+        "locations": ["Снежный храм", "Ледяная пещера", "Замерзшее озеро", "Волшебный лес", "Гора духов"]
+    }
     
     quest_data = context.user_data["frozen_runes"]
     
@@ -1702,7 +1703,7 @@ async def quest_frozen_runes(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     await q.edit_message_text(story, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
 
-# 🎁 Квест: Спасение подарков (многошаговый)
+# 🎁 Квест: Спасение подарков
 async def quest_gift_rescue(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -1710,13 +1711,12 @@ async def quest_gift_rescue(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     init_user_data(user.id)
     
-    if "gift_rescue" not in context.user_data:
-        context.user_data["gift_rescue"] = {
-            "step": 1,
-            "gifts_rescued": 0,
-            "stealth": 50,
-            "position": "вход в пещеру"
-        }
+    context.user_data["gift_rescue"] = {
+        "step": 1,
+        "gifts_rescued": 0,
+        "stealth": 50,
+        "position": "вход в пещеру"
+    }
     
     quest_data = context.user_data["gift_rescue"]
     
@@ -1782,6 +1782,7 @@ async def quest_lost_reindeer(update: Update, context: ContextTypes.DEFAULT_TYPE
     ]
     
     await q.edit_message_text(story, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
+
 # 🏰 Квест: Штурм замка Гринча
 async def quest_grinch_castle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -1794,7 +1795,6 @@ async def quest_grinch_castle(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     story = """
 🏰 <b>Штурм замка Гринча</b>
-# ... остальной код без изменений
 
 Финальная битва! Замок Гринча защищён ледяными стенами и сторожевыми башнями.
 
@@ -1847,7 +1847,6 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     result = ""
     points_earned = 0
     exp_earned = 0
-    
     
     if active_quest == "frozen_runes":
         quest_data = context.user_data["frozen_runes"]
@@ -2869,6 +2868,7 @@ def main():
     
     load_data()
     
+    # Используем polling для Replit
     app = Application.builder().token(TOKEN).build()
 
     # Основные команды
