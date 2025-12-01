@@ -1619,6 +1619,40 @@ async def show_top_players(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # -------------------------------------------------------------------
 # 🎪 РАЗДЕЛ: КВЕСТЫ (ПОЛНОСТЬЮ РЕАЛИЗОВАННЫЕ)
 # -------------------------------------------------------------------
+async def show_quest_achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    
+    user = update.effective_user
+    init_user_data(user.id)
+    
+    user_info = user_data[str(user.id)]
+    achievements = user_info.get("achievements", [])
+    
+    quest_achievements = [
+        ("frozen_runes_completed", "❄️ Искатель замерзших рун", "Найти 3+ рун в квесте"),
+        ("gift_rescue_completed", "🎁 Спасатель подарков", "Спасти подарки у Гринча"),
+        ("reindeer_finder", "🦌 Находчивый следопыт", "Найти потерявшегося оленя"),
+        ("grinch_castle_conqueror", "🏰 Завоеватель замка", "Проникнуть в замок Гринча"),
+    ]
+    
+    achievements_text = "🏆 <b>Твои квестовые достижения:</b>\n\n"
+    
+    has_any = False
+    for achievement_id, name, description in quest_achievements:
+        if achievement_id in achievements:
+            achievements_text += f"✅ <b>{name}</b>\n{description}\n\n"
+            has_any = True
+    
+    if not has_any:
+        achievements_text += "📭 У тебя пока нет квестовых достижений.\n"
+        achievements_text += "Отправляйся в квесты через меню! 🏔️"
+    
+    await q.edit_message_text(
+        achievements_text,
+        parse_mode='HTML',
+        reply_markup=back_to_menu_keyboard()
+    )
 async def enhanced_quest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
