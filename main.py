@@ -1836,6 +1836,20 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     user = update.effective_user
     init_user_data(user.id)
     
+    # Если нажата кнопка "К другим квестам" - вызываем меню квестов
+    if action == "menu":
+        await enhanced_quest_menu(update, context)
+        return
+    
+    # Если нажата кнопка "В меню" или "Назад" - возвращаемся в главное меню
+    if action in ["back", "back_menu", "to_menu"]:
+        admin = is_admin(update)
+        await q.edit_message_text(
+            "🎄 Возвращаемся в главное меню...",
+            reply_markup=enhanced_menu_keyboard(admin)
+        )
+        return
+    
     # Определяем текущий активный квест
     active_quest = None
     quest_keys = ["frozen_runes", "gift_rescue", "lost_reindeer", "grinch_castle"]
@@ -1844,10 +1858,16 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             active_quest = quest
             break
     
+    # Если нет активного квеста, показываем меню квестов
+    if not active_quest:
+        await enhanced_quest_menu(update, context)
+        return
+    
     result = ""
     points_earned = 0
     exp_earned = 0
     
+    # Обработка конкретных квестов
     if active_quest == "frozen_runes":
         quest_data = context.user_data["frozen_runes"]
         
@@ -1902,8 +1922,7 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                     user_data[str(user.id)]["achievements"].append(achievement)
                     user_data[str(user.id)]["quests_finished"] += 1
                 
-                result = f"""
-🎉 <b>Квест завершён!</b>
+                result = f"""🎉 <b>Квест завершён!</b>
 
 🏆 Найдено рун: {total_runes}/5
 ✨ Получено: {points_earned} очков, {exp_earned} опыта
@@ -1913,6 +1932,7 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                 del context.user_data["frozen_runes"]
             else:
                 result = "🚫 Нужно найти хотя бы 3 руны для завершения квеста!"
+                await q.edit_message_text(result, parse_mode='HTML')
                 return
     
     elif active_quest == "gift_rescue":
@@ -1968,8 +1988,7 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                     user_data[str(user.id)]["achievements"].append(achievement)
                     user_data[str(user.id)]["quests_finished"] += 1
                 
-                result = f"""
-🎉 <b>Миссия выполнена!</b>
+                result = f"""🎉 <b>Миссия выполнена!</b>
 
 🎁 Спасено подарков: {total_gifts}
 ✨ Получено: {points_earned} очков, {exp_earned} опыта  
@@ -1979,6 +1998,7 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                 del context.user_data["gift_rescue"]
             else:
                 result = "🚫 Нужно спасти хотя бы 1 подарок!"
+                await q.edit_message_text(result, parse_mode='HTML')
                 return
     
     # Обработка общих действий для всех квестов
@@ -2009,47 +2029,22 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     if exp_earned != 0:
         add_reindeer_exp(user.id, exp_earned)
     
-    # Показываем результат
+    # Формируем клавиатуру на основе результата
     keyboard = []
+    
     if active_quest and "complete" not in action and "escape" not in action:
+        # Если квест не завершен, показываем кнопку для продолжения
         keyboard.append([InlineKeyboardButton("🔄 Продолжить квест", callback_data=f"quest_start_{active_quest}")])
+    
+    # Всегда показываем кнопку для выбора другого квеста
     keyboard.append([InlineKeyboardButton("🏔️ Выбрать другой квест", callback_data="quest_menu")])
     keyboard.append([InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")])
     
+    # Отправляем результат
     await q.edit_message_text(
         f"🏔️ <b>Результат:</b>\n\n{result}",
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
-async def show_quest_achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    
-    user = update.effective_user
-    init_user_data(user.id)
-    
-    achievements = user_data[str(user.id)].get("achievements", [])
-    quest_achievements = [
-        ("frozen_runes_completed", "❄️ Искатель рун", "Найди 3+ рун в Зачарованном лесу"),
-        ("gift_rescue_completed", "🎁 Спасатель подарков", "Верни украденные подарки"),
-        ("reindeer_finder", "🦌 Поисковик оленей", "Найди потерявшегося оленя"),
-        ("grinch_castle_conqueror", "🏰 Покоритель замка", "Проникни в замок Гринча")
-    ]
-    
-    achievements_text = "🏆 <b>Твои достижения в квестах:</b>\n\n"
-    
-    for achievement_id, name, description in quest_achievements:
-        status = "✅" if achievement_id in achievements else "❌"
-        achievements_text += f"{status} <b>{name}</b>\n{description}\n\n"
-    
-    await q.edit_message_text(
-        achievements_text,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🏔️ К квестам", callback_data="quest_menu")],
-            [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
-        ])
     )
 
 # -------------------------------------------------------------------
