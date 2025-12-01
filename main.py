@@ -536,7 +536,30 @@ async def show_room_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = load_data()
     user = update.effective_user
     
-    # РќР°Р№РґРµРј РєРѕРјРЅР°С‚Сѓ, РІ РєРѕС‚РѕСЂРѕР№ РЅР°С…РѕРґРёС‚СЃСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ
+    # Если пользователь - админ, показываем все комнаты для выбора
+    if is_admin(update):
+        if not data["rooms"]:
+            await update.callback_query.answer("Нет созданных комнат!", show_alert=True)
+            return
+        
+        keyboard = []
+        for code, room in data["rooms"].items():
+            keyboard.append([InlineKeyboardButton(
+                f"?? {code} ({len(room['members'])} участ.)", 
+                callback_data=f"admin_view_room_{code}"
+            )])
+        
+        keyboard.append([InlineKeyboardButton("?? Назад", callback_data="back_menu")])
+        
+        await update.callback_query.edit_message_text(
+            "?? <b>Просмотр участников комнат (админ)</b>\n\n"
+            "Выберите комнату для просмотра участников:",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+    
+    # Для обычных пользователей - ищем комнату, в которой они находятся
     user_room = None
     room_code = None
     
@@ -547,62 +570,23 @@ async def show_room_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
             break
     
     if not user_room:
-        await update.callback_query.answer("РўС‹ РЅРµ РІ РєРѕРјРЅР°С‚Рµ!", show_alert=True)
+        await update.callback_query.answer("Ты не в комнате!", show_alert=True)
         return
     
-    members_text = f"рџ‘Ґ <b>РЈС‡Р°СЃС‚РЅРёРєРё РєРѕРјРЅР°С‚С‹ {room_code}:</b>\n\n"
+    members_text = f"?? <b>Участники комнаты {room_code}:</b>\n\n"
     for i, (user_id, member) in enumerate(user_room["members"].items(), 1):
-        wish_status = "вњ…" if member["wish"] else "вќЊ"
-        username = f"@{member['username']}" if member["username"] != "Р±РµР· username" else "Р±РµР· username"
+        wish_status = "?" if member["wish"] else "?"
+        username = f"@{member['username']}" if member["username"] != "без username" else "без username"
         members_text += f"{i}. {member['name']} ({username}) {wish_status}\n"
     
-    members_text += f"\n<b>Р’СЃРµРіРѕ СѓС‡Р°СЃС‚РЅРёРєРѕРІ:</b> {len(user_room['members'])}"
+    members_text += f"\n<b>Всего участников:</b> {len(user_room['members'])}"
     
     await update.callback_query.edit_message_text(
         members_text,
         parse_mode='HTML',
         reply_markup=back_to_menu_keyboard()
     )
-
-# -------------------------------------------------------------------
-# вљ™пёЏ Р РђР—Р”Р•Р›: РђР”РњРРќ-РџРђРќР•Р›Р¬ (Р РђРЎРЁРР Р•РќРќРђРЇ)
-# -------------------------------------------------------------------
-async def start_game_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update):
-        await update.callback_query.answer("рџљ« Р”РѕСЃС‚СѓРї Р·Р°РїСЂРµС‰С‘РЅ.", show_alert=True)
-        return
-
-    data = load_data()
     
-    if not data["rooms"]:
-        await update.callback_query.edit_message_text(
-            "рџљ« РќРµС‚ СЃРѕР·РґР°РЅРЅС‹С… РєРѕРјРЅР°С‚!",
-            reply_markup=back_to_menu_keyboard(True)
-        )
-        return
-
-    # РџРѕРєР°Р·С‹РІР°РµРј СЃРїРёСЃРѕРє РєРѕРјРЅР°С‚ РґР»СЏ Р·Р°РїСѓСЃРєР°
-    keyboard = []
-    for code, room in data["rooms"].items():
-        if not room["game_started"] and len(room["members"]) >= 2:
-            keyboard.append([InlineKeyboardButton(f"рџЋ„ {code} ({len(room['members'])} СѓС‡Р°СЃС‚.)", callback_data=f"start_{code}")])
-    
-    if not keyboard:
-        await update.callback_query.edit_message_text(
-            "рџљ« РќРµС‚ РєРѕРјРЅР°С‚ РґР»СЏ Р·Р°РїСѓСЃРєР°! РќСѓР¶РЅС‹ РєРѕРјРЅР°С‚С‹ СЃ РјРёРЅРёРјСѓРј 2 СѓС‡Р°СЃС‚РЅРёРєР°РјРё.",
-            reply_markup=back_to_menu_keyboard(True)
-        )
-        return
-    
-    keyboard.append([InlineKeyboardButton("в¬…пёЏ РќР°Р·Р°Рґ", callback_data="back_menu")])
-    
-    await update.callback_query.edit_message_text(
-        "рџљЂ <b>Р—Р°РїСѓСЃРє РёРіСЂС‹ РўР°Р№РЅС‹Р№ РЎР°РЅС‚Р°</b>\n\n"
-        "Р’С‹Р±РµСЂРё РєРѕРјРЅР°С‚Сѓ РґР»СЏ Р·Р°РїСѓСЃРєР°:",
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
 async def start_specific_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -1578,47 +1562,53 @@ async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def show_top_players(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # РЎРѕР±РёСЂР°РµРј СЃС‚Р°С‚РёСЃС‚РёРєСѓ РІСЃРµС… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
+    # Собираем статистику всех пользователей
     player_stats = []
     
     for user_id, data in user_data.items():
         score = data.get("total_points", 0)
-        player_stats.append((user_id, score, data))
+        # Получаем имя пользователя из данных, если нет - используем ID
+        name = data.get("name", f"Игрок {user_id[:6]}")
+        username = data.get("username", "")
+        player_stats.append((user_id, score, name, username))
     
-    # РЎРѕСЂС‚РёСЂСѓРµРј РїРѕ РѕС‡РєР°Рј
+    # Сортируем по очкам
     player_stats.sort(key=lambda x: x[1], reverse=True)
     
-    top_text = "рџЏ† <b>РўРѕРї РёРіСЂРѕРєРѕРІ:</b> \n\n"
+    top_text = "?? <b>Топ игроков:</b>\n\n"
     
     if not player_stats:
-        top_text += "РџРѕРєР° РЅРёРєС‚Рѕ РЅРµ РёРіСЂР°Р»... Р‘СѓРґСЊ РїРµСЂРІС‹Рј! рџЋ„"
+        top_text += "Пока никто не играл... Будь первым! ??"
     else:
-        medals = ["рџҐ‡", "рџҐ€", "рџҐ‰"]
-        for i, (user_id, score, data) in enumerate(player_stats[:10]):
-            if i < 3:
+        medals = ["??", "??", "??", "4??", "5??", "6??", "7??", "8??", "9??", "??"]
+        
+        for i, (user_id, score, name, username) in enumerate(player_stats[:10]):
+            if i < len(medals):
                 medal = medals[i]
             else:
                 medal = f"{i+1}."
             
-            user_name = data.get("name", f"РРіСЂРѕРє {user_id}")
-            top_text += f"{medal} {user_name} вЂ” {score} РѕС‡РєРѕРІ\n"
+            # Форматируем отображение имени
+            display_name = name
+            if username and username != "без username":
+                display_name = f"@{username}"
+            
+            top_text += f"{medal} <b>{display_name}</b> — {score} очков\n"
+    
+    top_text += f"\n<b>Всего игроков:</b> {len(player_stats)}"
     
     if update.callback_query:
         await update.callback_query.edit_message_text(
-            top_text, 
+            top_text,
             parse_mode='HTML',
             reply_markup=back_to_menu_keyboard()
         )
     else:
         await update.message.reply_text(
-            top_text, 
+            top_text,
             parse_mode='HTML',
             reply_markup=back_to_menu_keyboard()
         )
-
-# -------------------------------------------------------------------
-# рџЋЄ Р РђР—Р”Р•Р›: РљР’Р•РЎРўР« (РџРћР›РќРћРЎРўР¬Р® Р Р•РђР›РР—РћР’РђРќРќР«Р•)
-# -------------------------------------------------------------------
 async def show_quest_achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -1679,6 +1669,7 @@ async def enhanced_quest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
         [InlineKeyboardButton("рџЋЃ РЎРїР°СЃРµРЅРёРµ РїРѕРґР°СЂРєРѕРІ", callback_data="quest_start_gift_rescue")],
         [InlineKeyboardButton("рџ¦Њ РџРѕРёСЃРє РѕР»РµРЅРµР№", callback_data="quest_start_lost_reindeer")],
         [InlineKeyboardButton("рџЏ° РЁС‚СѓСЂРј Р·Р°РјРєР°", callback_data="quest_start_grinch_castle")],
+        [InlineKeyboardButton("?? Завершить текущий квест", callback_data="quest_finish")],
         [InlineKeyboardButton("в¬…пёЏ РќР°Р·Р°Рґ", callback_data="back_menu")]
     ]
     
@@ -2656,6 +2647,67 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
         else:
             await q.answer("вљ пёЏ Р­С‚Р° С„СѓРЅРєС†РёСЏ РІСЂРµРјРµРЅРЅРѕ РЅРµРґРѕСЃС‚СѓРїРЅР°", show_alert=True)
             
+        elif q.data.startswith("admin_view_room_"):
+    code = q.data.replace("admin_view_room_", "")
+    data = load_data()
+    
+    if code not in data["rooms"]:
+        await q.answer("Комната не найдена!", show_alert=True)
+        return
+    
+    room = data["rooms"][code]
+    members_text = f"?? <b>Участники комнаты {code}:</b>\n\n"
+    
+    for i, (user_id, member) in enumerate(room["members"].items(), 1):
+        wish_status = "?" if member["wish"] else "?"
+        username = f"@{member['username']}" if member["username"] != "без username" else "без username"
+        members_text += f"{i}. {member['name']} ({username}) {wish_status}\n"
+    
+    members_text += f"\n<b>Всего участников:</b> {len(room['members'])}"
+    members_text += f"\n<b>Статус игры:</b> {'? Запущена' if room['game_started'] else '? Ожидание'}"
+    
+    await q.edit_message_text(
+        members_text,
+        parse_mode='HTML',
+        reply_markup=back_to_menu_keyboard(True)
+    )
+            
+    elif q.data == "quest_finish":
+    user = update.effective_user
+    init_user_data(user.id)
+    
+    # Определяем активный квест
+    active_quest = None
+    for quest in ["frozen_runes", "gift_rescue", "lost_reindeer", "grinch_castle"]:
+        if quest in context.user_data:
+            active_quest = quest
+            break
+    
+    if active_quest:
+        # Награждаем за завершение квеста
+        points_earned = random.randint(100, 200)
+        exp_earned = random.randint(50, 100)
+        add_santa_points(user.id, points_earned, context)
+        add_reindeer_exp(user.id, exp_earned)
+        
+        # Увеличиваем счетчик завершенных квестов
+        user_data[str(user.id)]["quests_finished"] += 1
+        
+        # Удаляем данные квеста
+        del context.user_data[active_quest]
+        
+        await q.edit_message_text(
+            f"?? <b>Квест завершен!</b>\n\n"
+            f"? Получено: {points_earned} очков Санты\n"
+            f"?? +{exp_earned} опыта оленёнку\n"
+            f"?? Пройдено квестов: {user_data[str(user.id)]['quests_finished']}\n\n"
+            f"Отличная работа! ??",
+            parse_mode='HTML',
+            reply_markup=back_to_menu_keyboard()
+        )
+    else:
+        await q.answer("Нет активного квеста!", show_alert=True)
+        
     except Exception as e:
         print(f"РћС€РёР±РєР° РІ РѕР±СЂР°Р±РѕС‚С‡РёРєРµ callback: {e}")
         await q.answer("вќЊ РџСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР°. РџРѕРїСЂРѕР±СѓР№С‚Рµ РїРѕР·Р¶Рµ.", show_alert=True)
