@@ -1,3 +1,9 @@
 # .replit
 run = "python main.py"
-modules = ["python3-12"]
+modules = ["python-3.12", "nix"]
+
+[nix]
+channel = "stable-25_05"
+
+[agent]
+expertMode = true
