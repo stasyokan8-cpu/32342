@@ -2974,7 +2974,18 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
             await gift_ideas_menu(update, context)
             
         elif q.data == "gift_basic":
-                    elif q.data == "gift_personalized_menu":
+            idea = generate_gift_idea()
+            await q.edit_message_text(
+                f"🎁 <b>Базовая идея подарка:</b>\n\n{idea}\n\n"
+                f"💡 <b>Совет:</b> учитывай интересы получателя!",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔄 Другая базовая идея", callback_data="gift_basic")],
+                    [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
+                    [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+                ])
+            )
+        elif q.data == "gift_personalized_menu":
                         await gift_personalized_menu(update, context)
                         
                     elif q.data == "gift_select_recipient":
@@ -3003,18 +3014,7 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
                         
                     elif q.data == "gift_generate_personalized":
                         await generate_with_saved_params(update, context)
-            idea = generate_gift_idea()
-            await q.edit_message_text(
-                f"🎁 <b>Базовая идея подарка:</b>\n\n{idea}\n\n"
-                f"💡 <b>Совет:</b> учитывай интересы получателя!",
-                parse_mode='HTML',
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔄 Другая базовая идея", callback_data="gift_basic")],
-                    [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
-                    [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
-                ])
-            )
-
+                        
         elif q.data == "gift_personalized_menu":
             await gift_personalized_menu(update, context)
             
