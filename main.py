@@ -1684,30 +1684,82 @@ async def epic_grinch_battle(update: Update, context: ContextTypes.DEFAULT_TYPE)
     init_user_data(user.id)
     user_data[str(user.id)]["grinch_fights"] += 1
     
-    # Статистика игрока
+    # Расширенная система характеристик игрока
     player_stats = {
-        "hp": 100,
-        "max_hp": 100,
-        "attack": random.randint(18, 28),
-        "defense": random.randint(8, 15),
-        "special_charges": 3
+        "hp": 120,
+        "max_hp": 120,
+        "mana": 50,
+        "max_mana": 50,
+        "attack": random.randint(20, 30),
+        "defense": random.randint(10, 18),
+        "crit_chance": 0.15,
+        "dodge_chance": 0.10,
+        "special_charges": 3,
+        "rage": 0,  # Шкала ярости для супер-атак
+        "items": {
+            "potion": random.randint(1, 3),
+            "bomb": random.randint(0, 2),
+            "cookie": random.randint(0, 1)  # Восстанавливает все HP
+        },
+        "statuses": {
+            "enchanted": 0,  # Усиление атаки
+            "shielded": 0,   # Защита
+            "bleeding": 0,   # Постепенный урон
+            "confused": 0    # Шанс промаха
+        }
     }
+    
+    # 5 типов Гринча (случайный выбор)
+    grinch_types = {
+        "thief": {"name": "🎁 Вор подарков", "hp": 100, "attack": 25, "trait": "Может украсть предмет"},
+        "berserk": {"name": "😠 Берсерк-Гринч", "hp": 140, "attack": 35, "trait": "Сильнее при низком HP"},
+        "mage": {"name": "🧙 Маг-Гринч", "hp": 90, "attack": 28, "trait": "Использует магию"},
+        "tank": {"name": "🛡️ Танк-Гринч", "hp": 180, "attack": 18, "trait": "Высокая защита"},
+        "trickster": {"name": "🃏 Гринч-Трикстер", "hp": 110, "attack": 22, "trait": "Наводит помехи"}
+    }
+    
+    grinch_type = random.choice(list(grinch_types.keys()))
+    grinch_data = grinch_types[grinch_type]
     
     # Статистика Гринча
     grinch_stats = {
-        "hp": 120,
-        "max_hp": 120,
-        "attack": random.randint(22, 32),
-        "defense": random.randint(10, 18),
+        "type": grinch_type,
+        "name": grinch_data["name"],
+        "hp": grinch_data["hp"],
+        "max_hp": grinch_data["hp"],
+        "attack": grinch_data["attack"],
+        "defense": random.randint(12, 22),
         "special_used": False,
-        "rage_mode": False
+        "rage_mode": False,
+        "phase": 1,  # Фазы боя (1, 2, 3)
+        "traits": grinch_data["trait"],
+        "abilities": {
+            "steal": grinch_type == "thief",
+            "magic": grinch_type == "mage",
+            "heal": random.random() > 0.7,
+            "summon": random.random() > 0.8
+        }
     }
     
     context.user_data["battle_state"] = {
         "player": player_stats,
         "grinch": grinch_stats,
         "round": 1,
-        "battle_log": ["⚔️ Битва началась! Гринч появляется из тумана..."]
+        "environment": random.choice(["Снежная буря", "Замерзшая река", "Ёлочный лес", "Пещера Гринча", "Крыша города"]),
+        "weather_effect": random.choice([None, "visibility_down", "attack_up", "defense_down"]),
+        "battle_log": [
+            f"⚔️ <b>Начинается эпичная битва с {grinch_stats['name']}!</b>",
+            f"📍 <b>Место битвы:</b> {context.user_data['battle_state']['environment']}",
+            f"🎯 <b>Особенность Гринча:</b> {grinch_stats['traits']}",
+            random.choice([
+                "❄️ Гринч: 'Я украду Рождество, а потом и твой сэндвич!'",
+                "🎁 Гринч: 'Подарки? Я делаю из них дрова для камина!'",
+                "🦌 Гринч: 'Олени слишком медленные для моего побега на санях!'",
+                "🍪 Гринч: 'Печенья для Санты? Я их уже съел. Извини!'"
+            ])
+        ],
+        "combo": 0,  # Комбо-счетчик
+        "unexpected_events": []  # Неожиданные события
     }
     
     await show_battle_interface(update, context)
@@ -1718,35 +1770,71 @@ async def show_battle_interface(update: Update, context: ContextTypes.DEFAULT_TY
     player = battle_state["player"]
     grinch = battle_state["grinch"]
     
-    # Создаем визуальные шкалы HP
-    player_hp_bar = "❤️" * max(1, player["hp"] // 10) + "♡" * max(0, (player["max_hp"] - player["hp"]) // 10)
-    grinch_hp_bar = "💚" * max(1, grinch["hp"] // 10) + "♡" * max(0, (grinch["max_hp"] - grinch["hp"]) // 10)
+    # Визуализация HP
+    def create_bar(current, max_val, filled="❤️", empty="♡", length=10):
+        filled_count = int((current / max_val) * length)
+        return filled * filled_count + empty * (length - filled_count)
+    
+    player_hp_bar = create_bar(player["hp"], player["max_hp"], "❤️", "♡")
+    player_mana_bar = create_bar(player["mana"], player["max_mana"], "🔵", "⚫", 5)
+    grinch_hp_bar = create_bar(grinch["hp"], grinch["max_hp"], "💚", "♡")
+    
+    # Отображение статусов
+    status_effects = []
+    for status, turns in player["statuses"].items():
+        if turns > 0:
+            status_icons = {
+                "enchanted": "✨",
+                "shielded": "🛡️",
+                "bleeding": "🩸",
+                "confused": "🌀"
+            }
+            status_effects.append(f"{status_icons.get(status, '❓')}{turns}")
+    
+    # Неожиданные события
+    unexpected_text = ""
+    if battle_state["unexpected_events"]:
+        unexpected_text = "\n\n🎭 <b>Неожиданности:</b>\n" + "\n".join(battle_state["unexpected_events"][-2:])
     
     battle_text = f"""
 ⚔️ <b>БИТВА С ГРИНЧЕМ - Раунд {battle_state['round']}</b>
+📍 <b>Место:</b> {battle_state['environment']}
 
 🎅 <b>ТВОЙ САНТА:</b>
 {player_hp_bar} {player['hp']}/{player['max_hp']} HP
+{player_mana_bar} {player['mana']}/{player['max_mana']} Мана
 ⚡ Атака: {player['attack']} 🛡 Защита: {player['defense']}
-✨ Особые умения: {player['special_charges']} зарядов
+✨ Особые умения: {player['special_charges']} 🔥 Ярость: {player['rage']}/100
+🎒 Предметы: 🧪×{player['items']['potion']} 💣×{player['items']['bomb']} 🍪×{player['items']['cookie']}
+{'📛 Статусы: ' + ' '.join(status_effects) if status_effects else ''}
 
-🎄 <b>ГРИНЧ:</b>  
+🎄 <b>{grinch['name']}:</b>  
 {grinch_hp_bar} {grinch['hp']}/{grinch['max_hp']} HP
+{'😠 ФАЗА {grinch["phase"]}! ЯРОСТЬ!' if grinch['rage_mode'] else 'Фаза ' + str(grinch['phase'])}
 ⚡ Атака: {grinch['attack']} 🛡 Защита: {grinch['defense']}
-{'😠 В ЯРОСТИ!' if grinch['rage_mode'] else ''}
+🎯 Особость: {grinch['traits']}
 
-Выбери действие:
+<b>Выбери действие:</b>
+{unexpected_text}
 """
     
     # Добавляем лог битвы если есть
     if battle_state["battle_log"]:
-        battle_text += "\n📜 <b>Последние события:</b>\n" + "\n".join(battle_state["battle_log"][-3:]) + "\n"
+        battle_text += "\n\n📜 <b>Последние события:</b>\n" + "\n.join(battle_state['battle_log'][-3:]) + "\n"
     
+    # Разные кнопки в зависимости от фазы
     keyboard = [
-        [InlineKeyboardButton("⚔️ Атаковать", callback_data="battle_attack")],
-        [InlineKeyboardButton("🛡 Укрепить защиту", callback_data="battle_defend")],
-        [InlineKeyboardButton("✨ Новогоднее волшебство", callback_data="battle_special")],
-        [InlineKeyboardButton("🏃 Сбежать", callback_data="battle_flee")]
+        [InlineKeyboardButton("⚔️ Обычная атака", callback_data="battle_attack_normal"),
+         InlineKeyboardButton("💥 Сильная атака (-10 маны)", callback_data="battle_attack_strong")],
+        [InlineKeyboardButton("✨ Магическая атака (-20 маны)", callback_data="battle_attack_magic"),
+         InlineKeyboardButton("🎯 Критический удар (-15 маны)", callback_data="battle_critical")],
+        [InlineKeyboardButton("🛡️ Укрепить защиту (-10 маны)", callback_data="battle_defend"),
+         InlineKeyboardButton("🌀 Запутать Гринча (-25 маны)", callback_data="battle_confuse")],
+        [InlineKeyboardButton("🧪 Использовать зелье", callback_data="battle_item_potion"),
+         InlineKeyboardButton("💣 Бросить бомбу", callback_data="battle_item_bomb")],
+        [InlineKeyboardButton("🎄 НОВОГОДНЕЕ ЧУДО! (-35 маны)", callback_data="battle_christmas_magic")],
+        [InlineKeyboardButton("🤔 Специальное действие...", callback_data="battle_special_action")],
+        [InlineKeyboardButton("🏃 Сбежать (позорно!)", callback_data="battle_flee")]
     ]
     
     await q.edit_message_text(battle_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
@@ -1761,122 +1849,556 @@ async def battle_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
     grinch = battle_state["grinch"]
     
     battle_log = battle_state["battle_log"]
+    unexpected_events = battle_state["unexpected_events"]
+    result_text = ""
     
-    # Ход игрока
-    if action == "attack":
-        damage = max(1, player["attack"] - grinch["defense"] // 3)
-        grinch["hp"] -= damage
-        battle_log.append(f"🎅 Ты атаковал и нанёс {damage} урона!")
-        
-    elif action == "defend":
-        defense_bonus = random.randint(8, 15)
-        player["defense"] += defense_bonus
-        battle_log.append(f"🛡 Ты укрепил защиту! +{defense_bonus} к защите")
-        
-    elif action == "special" and player["special_charges"] > 0:
-        player["special_charges"] -= 1
-        heal = random.randint(25, 40)
-        player["hp"] = min(player["max_hp"], player["hp"] + heal)
-        special_damage = random.randint(20, 30)
-        grinch["hp"] -= special_damage
-        battle_log.append(f"✨ Новогоднее волшебство! Исцеление +{heal}, Гринч получает {special_damage} урона!")
-        
-    elif action == "flee":
+    # Обработка побега
+    if action == "flee":
         flee_chance = random.random()
-        if flee_chance > 0.7:
-            await q.edit_message_text(
-                "🏃 Ты успешно сбежал от Гринча!\n\n-20 очков Санты за трусость!",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🎮 Вернуться в игры", callback_data="mini_games")],
-                    [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
-                ])
-            )
-            add_santa_points(update.effective_user.id, -20, context)
+        flee_success = flee_chance > 0.6
+        
+        if flee_success:
+            flee_messages = [
+                "🏃 Ты успешно сбежал, оставив Гринча в недоумении!",
+                "🚀 Используя реактивные сани, ты умчался прочь!",
+                "🎅 Ты затерялся в снежной буре... но хотя бы живой!",
+                "🦌 Олени внезапно появились и увезли тебя! (Спасибо, Рудольф!)"
+            ]
+            result_text = random.choice(flee_messages) + "\n\n-25 очков Санты за трусость!"
+            add_santa_points(update.effective_user.id, -25, context)
+            await show_battle_result(update, context, result_text)
             return
         else:
-            battle_log.append("🏃 Попытка сбежать провалилась! Гринч блокирует escape!")
+            flee_fail_messages = [
+                "🚫 Гринч заблокировал выход гирляндой!",
+                "🎄 Ты споткнулся о подарочную коробку!",
+                "🦌 Олени отказались тебе помогать!",
+                "🍪 Ты уронил печенье и отвлекся..."
+            ]
+            battle_log.append("🏃 " + random.choice(flee_fail_messages))
+            # Гринч атакует за попытку побега
+            damage = max(5, grinch["attack"] - player["defense"] // 4)
+            player["hp"] -= damage
+            battle_log.append(f"🎄 Гринч атаковал исподтишка! -{damage} HP")
+    
+    # Ход игрока
+    elif action.startswith("attack_"):
+        if "normal" in action:
+            damage = calculate_damage(player, grinch, "normal")
+            grinch["hp"] -= damage
+            player["rage"] = min(100, player["rage"] + 10)
+            crit = "💥 КРИТИЧЕСКИЙ УДАР! " if random.random() < player["crit_chance"] else ""
+            battle_log.append(f"🎅 {crit}Ты атаковал! -{damage} HP Гринчу")
+            
+        elif "strong" in action:
+            if player["mana"] >= 10:
+                player["mana"] -= 10
+                damage = calculate_damage(player, grinch, "strong")
+                grinch["hp"] -= damage
+                player["rage"] = min(100, player["rage"] + 15)
+                battle_log.append(f"💥 Сильная атака! -{damage} HP Гринчу")
+            else:
+                battle_log.append("💢 Недостаточно маны! Атака провалилась")
+                
+        elif "magic" in action:
+            if player["mana"] >= 20:
+                player["mana"] -= 20
+                damage = calculate_damage(player, grinch, "magic")
+                grinch["hp"] -= damage
+                # Шанс наложить эффект
+                if random.random() < 0.3:
+                    grinch["defense"] = max(5, grinch["defense"] - 5)
+                    battle_log.append(f"✨ Магия ослабила защиту Гринча! -{damage} HP")
+                else:
+                    battle_log.append(f"✨ Магическая атака! -{damage} HP Гринчу")
+            else:
+                battle_log.append("💢 Недостаточно маны для магии!")
+    
+    elif action == "critical":
+        if player["mana"] >= 15:
+            player["mana"] -= 15
+            crit_damage = calculate_damage(player, grinch, "critical")
+            grinch["hp"] -= crit_damage
+            player["rage"] = min(100, player["rage"] + 20)
+            critical_messages = [
+                f"🎯 В яблочко! -{crit_damage} HP",
+                f"💫 Прямо в нос Гринча! -{crit_damage} HP",
+                f"🎄 Попал подарком по голове! -{crit_damage} HP"
+            ]
+            battle_log.append(random.choice(critical_messages))
+        else:
+            battle_log.append("💢 Нужно больше маны для критического удара!")
+    
+    elif action == "defend":
+        if player["mana"] >= 10:
+            player["mana"] -= 10
+            defense_bonus = random.randint(8, 15)
+            player["defense"] += defense_bonus
+            player["statuses"]["shielded"] = 2
+            battle_log.append(f"🛡️ Защита усилена! +{defense_bonus} к защите на 2 хода")
+        else:
+            battle_log.append("💢 Недостаточно маны для защиты!")
+    
+    elif action == "confuse":
+        if player["mana"] >= 25:
+            player["mana"] -= 25
+            grinch["statuses"] = grinch.get("statuses", {})
+            grinch["statuses"]["confused"] = 3
+            confuse_messages = [
+                "🌀 Гринч запутался в гирляндах!",
+                "🎁 Ты показал блестящую игрушку - Гринч дезориентирован!",
+                "✨ Магия замешательства подействовала!"
+            ]
+            battle_log.append(random.choice(confuse_messages))
+        else:
+            battle_log.append("💢 Недостаточно маны для замешательства!")
+    
+    elif action.startswith("item_"):
+        item_type = action.replace("item_", "")
+        
+        if item_type == "potion" and player["items"]["potion"] > 0:
+            player["items"]["potion"] -= 1
+            heal = random.randint(30, 50)
+            player["hp"] = min(player["max_hp"], player["hp"] + heal)
+            potion_messages = [
+                f"🧪 Выпил зелье! +{heal} HP",
+                f"💊 Проглотил волшебную микстуру! +{heal} HP",
+                f"🥤 Новогодний эликсир восстановил {heal} HP"
+            ]
+            battle_log.append(random.choice(potion_messages))
+            
+        elif item_type == "bomb" and player["items"]["bomb"] > 0:
+            player["items"]["bomb"] -= 1
+            damage = random.randint(25, 40)
+            grinch["hp"] -= damage
+            bomb_messages = [
+                f"💣 Бомба из конфетти! -{damage} HP",
+                f"🎆 Фейерверк в лицо Гринчу! -{damage} HP",
+                f"🧨 Подарочная бомба взорвалась! -{damage} HP"
+            ]
+            battle_log.append(random.choice(bomb_messages))
+            
+        elif item_type == "cookie" and player["items"]["cookie"] > 0:
+            player["items"]["cookie"] -= 1
+            player["hp"] = player["max_hp"]
+            player["mana"] = player["max_mana"]
+            battle_log.append("🍪 Волшебное печенье восстановило всё здоровье и ману!")
+    
+    elif action == "christmas_magic":
+        if player["mana"] >= 35:
+            player["mana"] -= 35
+            magic_effects = random.choice([
+                ("✨ Призвал эльфов-помощников!", "grinch_hp", random.randint(30, 45)),
+                ("🎄 Ёлка упала на Гринча!", "grinch_hp", random.randint(40, 60)),
+                ("🌟 Сияние Рождества ослепило Гринча!", "grinch_confuse", 3),
+                ("🦌 Олени атаковали тараном!", "grinch_hp", random.randint(35, 50))
+            ])
+            
+            battle_log.append(magic_effects[0])
+            if "grinch_hp" in magic_effects:
+                grinch["hp"] -= magic_effects[2]
+                battle_log.append(f"-{magic_effects[2]} HP Гринчу")
+            elif "grinch_confuse" in magic_effects:
+                grinch["statuses"]["confused"] = magic_effects[2]
+        else:
+            battle_log.append("🎅 Нужно больше рождественского духа (маны)!")
+    
+    elif action == "special_action":
+        special_actions = [
+            ("🤝 Попытаться договориться", 0.1),
+            ("🎤 Спеть рождественскую песню", 0.3),
+            ("🎁 Предложить подарок", 0.4),
+            ("🕺 Исполнить танец победы", 0.2)
+        ]
+        
+        chosen_action, success_chance = random.choice(special_actions)
+        
+        if random.random() < success_chance:
+            if "договориться" in chosen_action:
+                battle_log.append("🤝 Гринч задумался... и согласился на перемирие!")
+                grinch["hp"] -= 15  # Смутил Гринча
+            elif "спеть" in chosen_action:
+                battle_log.append("🎤 Гринч расплакался от твоего пения! -20 HP")
+                grinch["hp"] -= 20
+            elif "подарок" in chosen_action:
+                battle_log.append("🎁 Гринч тронут! Он ослаб на 1 ход")
+                grinch["statuses"]["touched"] = 1
+            else:
+                battle_log.append("🕺 Гринч в замешательстве от твоего танца!")
+                player["rage"] += 30
+        else:
+            fail_messages = [
+                "🤝 Гринч только рассмеялся в ответ!",
+                "🎤 У Гринча аллергия на музыку! Он разозлился",
+                "🎁 'Мне не нужны твои жалкие подарки!'",
+                "🕺 'Что это за странные движения?'"
+            ]
+            battle_log.append(random.choice(fail_messages))
+            grinch["attack"] += 5
+    
+    # Проверка статусов игрока
+    process_player_statuses(player, battle_log)
     
     # Проверка победы
     if grinch["hp"] <= 0:
         await battle_victory(update, context, battle_log)
         return
     
-    # Ход Гринча
-    if grinch["hp"] < 40 and not grinch["rage_mode"]:
-        grinch["rage_mode"] = True
-        grinch["attack"] += 10
-        battle_log.append("😠 ГРИНЧ ВПАДАЕТ В ЯРОСТЬ! Его атака увеличилась!")
-    
-    grinch_actions = ["attack", "attack", "strong_attack", "special", "defend"]
-    grinch_action = random.choice(grinch_actions)
-
-    if grinch_action == "attack":
-        damage = max(1, grinch["attack"] - player["defense"] // 3)
-        player["hp"] -= damage
-        battle_log.append(f"🎄 Гринч атаковал и нанёс {damage} урона!")
-
-    elif grinch_action == "strong_attack":
-        if random.random() > 0.3:
-            damage = max(1, (grinch["attack"] + 8) - player["defense"] // 4)
-            player["hp"] -= damage
-            battle_log.append(f"💥 Гринч использует сильную атаку! {damage} урона!")
-        else:
-            battle_log.append(f"💫 Гринч промахнулся сильной атакой!")
-
-    elif grinch_action == "special" and not grinch["special_used"]:
-        grinch["special_used"] = True
-        grinch_special_damage = random.randint(25, 35)
-        player["hp"] -= grinch_special_damage
-        battle_log.append(f"💥 Гринч использует 'Крадущийся праздник'! -{grinch_special_damage} HP!")
-
-    elif grinch_action == "defend":
-        grinch_defense_bonus = random.randint(5, 10)
-        grinch["defense"] += grinch_defense_bonus
-        battle_log.append(f"🛡 Гринч укрепил защиту! +{grinch_defense_bonus} к защите")
+    # Ход Гринча (расширенный)
+    if grinch["hp"] > 0:
+        await grinch_turn(update, context, battle_log, unexpected_events)
     
     # Проверка поражения
     if player["hp"] <= 0:
         await battle_defeat(update, context, battle_log)
         return
     
+    # Восстановление маны
+    player["mana"] = min(player["max_mana"], player["mana"] + 5)
+    
+    # Шанс на неожиданное событие
+    if random.random() < 0.25:
+        trigger_unexpected_event(battle_state)
+    
+    # Увеличение раунда
     battle_state["round"] += 1
+    
+    # Смена фаз Гринча
+    if grinch["hp"] < grinch["max_hp"] * 0.3 and grinch["phase"] == 1:
+        grinch["phase"] = 2
+        grinch["rage_mode"] = True
+        grinch["attack"] += 15
+        battle_log.append("😠 ГРИНЧ ВПАЛ В ЯРОСТЬ! Его атака резко возросла!")
+        
+    elif grinch["hp"] < grinch["max_hp"] * 0.15 and grinch["phase"] == 2:
+        grinch["phase"] = 3
+        desperate_moves = [
+            "💢 'Я не сдамся так легко!'",
+            "🎄 'Заберу тебя с собой в небытие!'",
+            "🦌 'Даже олени не спасут тебя теперь!'"
+        ]
+        battle_log.append(random.choice(desperate_moves))
+        # Гринч получает последний шанс
+        grinch["hp"] += 20
+        battle_log.append("💚 Гринч собрал последние силы! +20 HP")
+    
     battle_state["battle_log"] = battle_log[-5:]
+    battle_state["unexpected_events"] = unexpected_events[-2:]
     
     await show_battle_interface(update, context)
+
+# Новая функция: ход Гринча
+async def grinch_turn(update: Update, context: ContextTypes.DEFAULT_TYPE, battle_log, unexpected_events):
+    battle_state = context.user_data["battle_state"]
+    player = battle_state["player"]
+    grinch = battle_state["grinch"]
+    
+    # Шанс уклонения игрока
+    if random.random() < player["dodge_chance"]:
+        dodge_messages = [
+            "🎅 Ловко увернулся от атаки!",
+            "🦌 Олень оттащил тебя в сторону!",
+            "❄️ Снежная туча скрыла тебя!"
+        ]
+        battle_log.append(random.choice(dodge_messages))
+        return
+    
+    # Эффект замешательства
+    if grinch.get("statuses", {}).get("confused", 0) > 0:
+        if random.random() < 0.5:
+            battle_log.append("🌀 Гринч слишком смущён и пропускает ход!")
+            grinch["statuses"]["confused"] -= 1
+            return
+    
+    # Выбор атаки Гринча в зависимости от типа
+    grinch_attacks = []
+    
+    if grinch["type"] == "thief" and random.random() > 0.7:
+        if player["items"]["potion"] > 0:
+            player["items"]["potion"] -= 1
+            grinch["hp"] += 15
+            battle_log.append("🎁 Гринч украл твоё зелье и выпил его! +15 HP Гринчу")
+            return
+    
+    elif grinch["type"] == "berserk" and grinch["hp"] < grinch["max_hp"] * 0.4:
+        grinch_attacks.append(("💢 Безумная ярость!", "strong"))
+        grinch_attacks.append(("💢 Безумная ярость!", "strong"))
+    
+    elif grinch["type"] == "mage":
+        grinch_attacks.append(("✨ Тёмная магия!", "magic"))
+        grinch_attacks.append(("🌀 Магический вихрь!", "magic"))
+    
+    elif grinch["type"] == "tank":
+        grinch_attacks.append(("🛡️ Тяжёлый удар!", "strong"))
+        grinch_attacks.append(("💥 Сокрушительный удар!", "strong"))
+    
+    else:
+        grinch_attacks.append(("🎄 Атака подарочной коробкой!", "normal"))
+        grinch_attacks.append(("🦌 Удар оленьими рогами!", "normal"))
+        grinch_attacks.append(("🍪 Бросок твёрдым печеньем!", "normal"))
+    
+    # Добавляем особые атаки
+    special_attacks = [
+        ("🎶 Пронзительное пение!", "magic", 0.1),
+        ("🎁 Взрыв конфетти!", "aoe", 0.15),
+        ("🦌 Призыв оленей-зомби!", "summon", 0.08),
+        ("🎄 Ёлка-метательный снаряд!", "strong", 0.2)
+    ]
+    
+    for attack_name, attack_type, chance in special_attacks:
+        if random.random() < chance:
+            grinch_attacks.append((attack_name, attack_type))
+            break
+    
+    # Выбираем случайную атаку
+    attack_name, attack_type = random.choice(grinch_attacks)
+    
+    # Расчёт урона
+    base_damage = grinch["attack"]
+    if attack_type == "strong":
+        base_damage = int(base_damage * 1.5)
+    elif attack_type == "magic":
+        base_damage = int(base_damage * 1.3)
+        # Шанс наложить эффект
+        if random.random() < 0.25:
+            player["statuses"]["bleeding"] = 2
+            battle_log.append("🩸 Ты истекаешь кровью!")
+    
+    # Учёт защиты игрока
+    damage = max(5, base_damage - player["defense"] // 3)
+    
+    # Усиление в ярости
+    if grinch["rage_mode"]:
+        damage = int(damage * 1.3)
+    
+    # Применение урона
+    player["hp"] -= damage
+    
+    battle_log.append(f"🎄 {attack_name} -{damage} HP")
+    
+    # Особые эффекты атак
+    if "summon" in attack_type:
+        extra_damage = random.randint(5, 15)
+        player["hp"] -= extra_damage
+        summon_messages = [
+            f"🦌 Олени-зомби атакуют! -{extra_damage} HP",
+            f"🎅 Призраки прошлых Гринчей помогают! -{extra_damage} HP"
+        ]
+        battle_log.append(random.choice(summon_messages))
+    
+    elif "aoe" in attack_type:
+        if player.get("statuses", {}).get("shielded", 0) > 0:
+            reduced_damage = max(1, damage // 2)
+            player["hp"] += damage - reduced_damage  # Откатываем часть урона
+            battle_log.append(f"🛡️ Щит поглотил часть урона! Осталось -{reduced_damage} HP")
+
+# Новая функция: неожиданные события
+def trigger_unexpected_event(battle_state):
+    events = [
+        ("🎅 Внезапно появился эльф и подкинул зелье!", 
+         lambda p, g: p["items"].update({"potion": p["items"]["potion"] + 1})),
+        
+        ("🦌 Пролетающий олень сбросил подарок!", 
+         lambda p, g: p["hp"] + 10 if p["hp"] < p["max_hp"] else None),
+        
+        ("🍪 С неба упало волшебное печенье!", 
+         lambda p, g: p["items"].update({"cookie": p["items"]["cookie"] + 1})),
+        
+        ("🎄 Ёлка загорелась, отвлекая обоих!", 
+         lambda p, g: (p["mana"] + 10, g["attack"] - 5)),
+        
+        ("❄️ Снежная буря усилилась! Видимость нулевая!", 
+         lambda p, g: (p["dodge_chance"] + 0.1, g["attack"] - 3)),
+        
+        ("🎁 Один из украденных подарков взорвался!", 
+         lambda p, g: g["hp"] - random.randint(10, 20)),
+        
+        ("✨ Рождественская магия витает в воздухе!", 
+         lambda p, g: (p["mana"] + 20, p["attack"] + 5)),
+        
+        ("🃏 Гринч нашёл колоду карт и отвлёкся!", 
+         lambda p, g: g["statuses"].update({"confused": 2})),
+        
+        ("🧦 Носки Гринча промокли! Он в плохом настроении!", 
+         lambda p, g: g["attack"] + 10),
+        
+        ("🌟 Падающая звезда исполнила желание!", 
+         lambda p, g: random.choice([
+             (p["hp"] + 30, p["mana"] + 20),
+             (g["hp"] - 25),
+             (p["items"]["bomb"] + 1)
+         ]))
+    ]
+    
+    event_text, effect = random.choice(events)
+    battle_state["unexpected_events"].append(event_text)
+    
+    # Применяем эффект
+    player = battle_state["player"]
+    grinch = battle_state["grinch"]
+    
+    result = effect(player, grinch)
+    if result:
+        if isinstance(result, tuple):
+            # Множественные эффекты
+            for res in result:
+                if isinstance(res, int):
+                    if res > 0:
+                        player["hp"] = min(player["max_hp"], player["hp"] + res)
+                    elif res < 0:
+                        grinch["hp"] -= abs(res)
+        elif isinstance(result, int):
+            if result > 0:
+                player["hp"] = min(player["max_hp"], player["hp"] + result)
+            else:
+                grinch["hp"] -= abs(result)
+
+# Новая функция: обработка статусов
+def process_player_statuses(player, battle_log):
+    # Уменьшаем длительность статусов
+    for status in list(player["statuses"].keys()):
+        if player["statuses"][status] > 0:
+            player["statuses"][status] -= 1
+    
+    # Эффект кровотечения
+    if player.get("statuses", {}).get("bleeding", 0) > 0:
+        bleed_damage = random.randint(3, 8)
+        player["hp"] -= bleed_damage
+        bleed_messages = [
+            f"🩸 Кровотечение! -{bleed_damage} HP",
+            f"💧 Теряешь кровь! -{bleed_damage} HP"
+        ]
+        battle_log.append(random.choice(bleed_messages))
+    
+    # Эффект усиления атаки
+    if player.get("statuses", {}).get("enchanted", 0) > 0:
+        player["attack"] += 5
+    
+    # Эффект щита (уменьшается со временем)
+    if player.get("statuses", {}).get("shielded", 0) == 0 and player["defense"] > 15:
+        player["defense"] = max(15, player["defense"] - 5)
+        battle_log.append("🛡️ Защита ослабла")
+
+# Новая функция: расчёт урона
+def calculate_damage(player, grinch, attack_type):
+    base_damage = player["attack"]
+    
+    if attack_type == "normal":
+        damage = base_damage + random.randint(-3, 5)
+    elif attack_type == "strong":
+        damage = int(base_damage * 1.5) + random.randint(0, 8)
+    elif attack_type == "magic":
+        damage = int(base_damage * 1.3) + random.randint(2, 10)
+    elif attack_type == "critical":
+        damage = int(base_damage * 2.0) + random.randint(5, 15)
+    
+    # Учёт защиты
+    damage = max(5, damage - grinch["defense"] // 4)
+    
+    # Усиление от статуса
+    if player.get("statuses", {}).get("enchanted", 0) > 0:
+        damage = int(damage * 1.2)
+    
+    return damage
+
+# Новая функция: показ результата битвы
+async def show_battle_result(update, context, message):
+    keyboard = [
+        [InlineKeyboardButton("🎮 Сразиться снова", callback_data="game_grinch")],
+        [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+    ]
+    
+    await update.callback_query.edit_message_text(
+        message,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 async def battle_victory(update: Update, context: ContextTypes.DEFAULT_TYPE, battle_log):
     user = update.effective_user
     user_data[str(user.id)]["grinch_wins"] += 1
     user_data[str(user.id)]["games_won"] += 1
     
-    points_earned = random.randint(80, 150)
-    add_santa_points(user.id, points_earned, context)
-    add_reindeer_exp(user.id, 40)
+    # Бонусы в зависимости от типа Гринча
+    grinch_type = context.user_data["battle_state"]["grinch"]["type"]
+    type_bonuses = {
+        "thief": {"points": 120, "exp": 60, "item": "stolen_gift"},
+        "berserk": {"points": 150, "exp": 80, "item": "berserk_horn"},
+        "mage": {"points": 140, "exp": 70, "item": "magic_staff"},
+        "tank": {"points": 130, "exp": 75, "item": "tank_shield"},
+        "trickster": {"points": 110, "exp": 65, "item": "joker_card"}
+    }
     
+    bonus = type_bonuses.get(grinch_type, {"points": 100, "exp": 50, "item": "default"})
+    
+    # Бонус за скорость
+    round_count = context.user_data["battle_state"]["round"]
+    speed_bonus = max(0, 100 - round_count * 5)
+    
+    # Бонус за комбо
+    combo = context.user_data["battle_state"].get("combo", 0)
+    combo_bonus = combo * 10
+    
+    total_points = bonus["points"] + speed_bonus + combo_bonus
+    total_exp = bonus["exp"] + combo_bonus // 2
+    
+    add_santa_points(user.id, total_points, context)
+    add_reindeer_exp(user.id, total_exp)
+    
+    # Добавляем достижения
     if user_data[str(user.id)]["grinch_wins"] >= 3:
         add_achievement(user.id, "grinch_slayer")
+    if user_data[str(user.id)]["grinch_wins"] >= 10:
+        add_achievement(user.id, "grinch_terminator")
+    if round_count <= 5:
+        add_achievement(user.id, "speed_runner")
+    if combo >= 5:
+        add_achievement(user.id, "combo_master")
+    
+    victory_messages = [
+        f"🎉 <b>ПОБЕДА НАД {context.user_data['battle_state']['grinch']['name'].upper()}!</b> 🎉",
+        f"✨ <b>Гринч повержен! Рождество спасено!</b> ✨",
+        f"🏆 <b>Триумф! {grinch_type} Гринч побеждён!</b> 🏆"
+    ]
     
     victory_text = f"""
-🎉 <b>ПОБЕДА НАД ГРИНЧЕМ!</b> 🎉
+{random.choice(victory_messages)}
 
 ✨ <b>Награды:</b>
-• +{points_earned} очков Санты
-• +40 опыта оленёнку
-• Звание Защитника Рождества!
+• +{total_points} очков Санты
+• +{total_exp} опыта оленёнку
+• Получен предмет: {bonus['item']}
+• Бонус за скорость: +{speed_bonus}
+• Бонус за комбо: +{combo_bonus}
 
-📜 <b>Ход битвы:</b>
-""" + "\n".join(battle_log[-5:]) + f"""
+📊 <b>Статистика битвы:</b>
+• Пройдено раундов: {round_count}
+• Максимальное комбо: {combo}
+• Оставшееся HP: {context.user_data['battle_state']['player']['hp']}
+• Использовано предметов: {3 - sum(context.user_data['battle_state']['player']['items'].values())}
+
+🎮 <b>Достижения:</b>
+{'✅ Защитник Рождества' if user_data[str(user.id)]["grinch_wins"] >= 3 else '◻️'}
+{'✅ Истребитель Гринчей' if user_data[str(user.id)]["grinch_wins"] >= 10 else '◻️'}
+{'✅ Скоростной боец' if round_count <= 5 else '◻️'}
+{'✅ Мастер комбо' if combo >= 5 else '◻️'}
 
 Гринч повержен, и Новый Год спасён! 🎄
 """
     
+    # Добавляем редкий предмет в инвентарь
+    if bonus["item"] not in user_data[str(user.id)]["rare_items"]:
+        user_data[str(user.id)]["rare_items"].append(bonus["item"])
+    
     keyboard = [
         [InlineKeyboardButton("🎮 Сразиться снова", callback_data="game_grinch")],
+        [InlineKeyboardButton("🎪 Другой тип Гринча", callback_data="battle_random_type")],
+        [InlineKeyboardButton("🏆 Мои достижения", callback_data="profile")],
         [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
     ]
     
     await update.callback_query.edit_message_text(victory_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
-
+    
 async def battle_defeat(update: Update, context: ContextTypes.DEFAULT_TYPE, battle_log):
     user = update.effective_user
     points_lost = random.randint(30, 60)
@@ -3359,6 +3881,10 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
                 "🎄 Возвращаемся в главное меню...",
                 reply_markup=enhanced_menu_keyboard(admin)
             )
+            
+        elif q.data == "battle_random_type":
+            # Запускаем битву со случайным типом Гринча
+            await epic_grinch_battle(update, context) 
             
         else:
             # Обработка игровых callback'ов
