@@ -2988,32 +2988,32 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
         elif q.data == "gift_personalized_menu":
                         await gift_personalized_menu(update, context)
                         
-                    elif q.data == "gift_select_recipient":
-                        await show_recipient_keyboard(update, context)
-                        
-                    elif q.data == "gift_select_occasion":
-                        await show_occasion_keyboard(update, context)
-                        
-                    elif q.data == "gift_select_budget":
-                        await show_budget_keyboard(update, context)
-                        
-                    elif q.data.startswith("gift_recipient_"):
-                        recipient = q.data.replace("gift_recipient_", "")
-                        context.user_data.setdefault("gift_params", {})["recipient"] = recipient
-                        await gift_personalized_menu(update, context)
-                        
-                    elif q.data.startswith("gift_occasion_"):
-                        occasion = q.data.replace("gift_occasion_", "")
-                        context.user_data.setdefault("gift_params", {})["occasion"] = occasion
-                        await gift_personalized_menu(update, context)
-                        
-                    elif q.data.startswith("gift_budget_"):
-                        budget = q.data.replace("gift_budget_", "")
-                        context.user_data.setdefault("gift_params", {})["budget"] = budget
-                        await gift_personalized_menu(update, context)
-                        
-                    elif q.data == "gift_generate_personalized":
-                        await generate_with_saved_params(update, context)
+        elif q.data == "gift_select_recipient":
+            await show_recipient_keyboard(update, context)
+            
+        elif q.data == "gift_select_occasion":
+            await show_occasion_keyboard(update, context)
+            
+        elif q.data == "gift_select_budget":
+            await show_budget_keyboard(update, context)
+            
+        elif q.data.startswith("gift_recipient_"):
+            recipient = q.data.replace("gift_recipient_", "")
+            context.user_data.setdefault("gift_params", {})["recipient"] = recipient
+            await gift_personalized_menu(update, context)
+            
+        elif q.data.startswith("gift_occasion_"):
+            occasion = q.data.replace("gift_occasion_", "")
+            context.user_data.setdefault("gift_params", {})["occasion"] = occasion
+            await gift_personalized_menu(update, context)
+            
+        elif q.data.startswith("gift_budget_"):
+            budget = q.data.replace("gift_budget_", "")
+            context.user_data.setdefault("gift_params", {})["budget"] = budget
+            await gift_personalized_menu(update, context)
+            
+        elif q.data == "gift_generate_personalized":
+            await generate_with_saved_params(update, context)
                         
         elif q.data == "gift_personalized_menu":
             await gift_personalized_menu(update, context)
