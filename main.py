@@ -3249,6 +3249,7 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
                     [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
                 ])
             )
+            
         elif q.data == "toast":
             await q.edit_message_text(
                 f"✨ <b>Тост дня:</b>\n{toast_of_day()}", 
