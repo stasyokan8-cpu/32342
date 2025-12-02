@@ -214,7 +214,6 @@ async def gift_ideas_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ✨ <b>Выбери тип генерации:</b>
 
 1. 🎯 <b>Базовая идея</b> - случайный подарок из 3 категорий
-2. 🎭 <b>Персонализированная идея</b> - с фильтрами по получателю и поводу
 3. 🎪 <b>Идеи по тематике</b> - несколько идей по выбранной теме
 4. 🔥 <b>Срочный подарок</b> - идеи для быстрой покупки
 5. 🎨 <b>Готовые наборы</b> - комбинации подарков для разных случаев
@@ -224,7 +223,6 @@ async def gift_ideas_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [
         [InlineKeyboardButton("🎯 Базовая идея", callback_data="gift_basic")],
-        [InlineKeyboardButton("🎭 Персонализированная", callback_data="gift_personalized_menu")],
         [InlineKeyboardButton("🎪 Идеи по тематике", callback_data="gift_themes_menu")],
         [InlineKeyboardButton("🔥 Срочный подарок", callback_data="gift_emergency_menu")],
         [InlineKeyboardButton("🎨 Готовые наборы", callback_data="gift_combinations")],
