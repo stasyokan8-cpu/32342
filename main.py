@@ -6,6 +6,7 @@ import random
 import string
 import asyncio
 import os
+import sys
 from datetime import datetime, timedelta, timezone
 from telegram import (
     Update, InlineKeyboardMarkup, InlineKeyboardButton
@@ -21,6 +22,27 @@ ADMIN_USERNAME = "BeellyKid"
 DATA_FILE = "santa_data.json"
 
 print(f"🎄 Запуск Secret Santa Bot v3.4 на Replit...")
+print(f"Токен: {'✅ Установлен' if TOKEN else '❌ НЕ НАЙДЕН!'}")
+
+# Проверка токена
+if not TOKEN:
+    print("❌ ОШИБКА: TELEGRAM_TOKEN не установлен!")
+    print("💡 Установите переменную окружения TELEGRAM_TOKEN в Replit Secrets")
+    print("💡 Или введите токен вручную ниже...")
+    # Попробуем получить токен из файла .env если есть
+    try:
+        with open('.env', 'r') as f:
+            for line in f:
+                if line.startswith('TELEGRAM_TOKEN='):
+                    TOKEN = line.strip().split('=', 1)[1]
+                    print(f"✅ Токен найден в .env файле")
+    except:
+        pass
+    
+    if not TOKEN:
+        # Попытка ввести токен вручную (только для локального тестирования)
+        print("🚫 Бот не может запуститься без токена!")
+        sys.exit(1)
 
 user_data = {}
 
@@ -33,6 +55,12 @@ def load_data():
             global user_data
             user_data = data["users"]
             return data
+    except FileNotFoundError:
+        # Создаем новый файл данных если не существует
+        default_data = {"rooms": {}, "users": {}}
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(default_data, f, indent=4, ensure_ascii=False)
+        return default_data
     except Exception as e:
         print(f"Ошибка загрузки данных: {e}")
         return {"rooms": {}, "users": {}}
@@ -2552,9 +2580,9 @@ async def animated_snowfall(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # -------------------------------------------------------------------
-# 🚀 ОСНОВНОЙ ЗАПУСК
+# 🚀 ОСНОВНОЙ ЗАПУСК ДЛЯ REPLIT
 # -------------------------------------------------------------------
-def main():
+def run_bot():
     # Создаем файл данных если его нет
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
@@ -2621,7 +2649,8 @@ def main():
         app.run_polling(
             allowed_updates=Update.ALL_TYPES,
             drop_pending_updates=True,
-            poll_interval=1.0
+            poll_interval=1.0,
+            timeout=30
         )
     except KeyboardInterrupt:
         print("\n🛑 Бот остановлен")
@@ -2633,7 +2662,40 @@ def main():
         print("🔄 Перезапуск через 5 секунд...")
         import time
         time.sleep(5)
-        main()
+        run_bot()
 
+# -------------------------------------------------------------------
+# 🌐 ДЛЯ REPLIT: ДОБАВЛЯЕМ ВЕБ-СЕРВЕР
+# -------------------------------------------------------------------
+from flask import Flask
+from threading import Thread
+
+# Создаем Flask приложение для поддержания активности на Replit
+app_flask = Flask('')
+
+@app_flask.route('/')
+def home():
+    return "🎄 Secret Santa Bot v3.4 работает! 🎅"
+
+def run_flask():
+    app_flask.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    # Запускаем Flask в отдельном потоке
+    t = Thread(target=run_flask)
+    t.daemon = True
+    t.start()
+
+# -------------------------------------------------------------------
+# 🚀 ЗАПУСК
+# -------------------------------------------------------------------
 if __name__ == "__main__":
-    main()
+    # На Replit запускаем веб-сервер и бота
+    if 'REPL_ID' in os.environ:
+        print("🌐 Запуск на Replit с веб-сервером...")
+        keep_alive()
+        run_bot()
+    else:
+        # Локальный запуск
+        print("💻 Локальный запуск бота...")
+        run_bot()
