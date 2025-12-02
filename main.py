@@ -2792,7 +2792,7 @@ def enhanced_menu_keyboard(admin=False):
          InlineKeyboardButton("✨ Тост дня", callback_data="toast")],
         [InlineKeyboardButton("🎮 Мини-игры", callback_data="mini_games"),
          InlineKeyboardButton("❄️ Снегопад", callback_data="snowfall")],
-        [InlineKeyboardButton("🎁 Идея подарка", callback_data="gift_idea"),
+        [InlineKeyboardButton("🎁 Идеи подарков", callback_data="gift_ideas_menu"),
          InlineKeyboardButton("🏔️ Квесты", callback_data="quest_menu")],
         [InlineKeyboardButton("👤 Профиль", callback_data="profile"),
          InlineKeyboardButton("🏆 Топ игроков", callback_data="top_players")],
@@ -2801,6 +2801,133 @@ def enhanced_menu_keyboard(admin=False):
         [InlineKeyboardButton("🎅 Присоединиться к комнате", callback_data="join_room_menu")],
     ]
     
+    async def gift_ideas_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer()
+    
+    menu_text = """
+🎁 <b>ГЕНЕРАТОР ИДЕЙ ПОДАРКОВ</b>
+
+✨ <b>Выбери тип генерации:</b>
+
+1. 🎯 <b>Базовая идея</b> - случайный подарок из 3 категорий
+2. 🎭 <b>Персонализированная идея</b> - с фильтрами по получателю и поводу
+3. 🎪 <b>Идеи по тематике</b> - несколько идей по выбранной теме
+4. 🔥 <b>Срочный подарок</b> - идеи для быстрой покупки
+5. 🎨 <b>Готовые наборы</b> - комбинации подарков для разных случаев
+
+💡 <b>Совет:</b> Чем точнее критерии, тем лучше будет результат!
+"""
+    
+    keyboard = [
+        [InlineKeyboardButton("🎯 Базовая идея", callback_data="gift_basic")],
+        [InlineKeyboardButton("🎭 Персонализированная", callback_data="gift_personalized_menu")],
+        [InlineKeyboardButton("🎪 Идеи по тематике", callback_data="gift_themes_menu")],
+        [InlineKeyboardButton("🔥 Срочный подарок", callback_data="gift_emergency_menu")],
+        [InlineKeyboardButton("🎨 Готовые наборы", callback_data="gift_combinations")],
+        [InlineKeyboardButton("⬅️ Назад в меню", callback_data="back_menu")]
+    ]
+    
+    await update.callback_query.edit_message_text(
+        menu_text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    async def gift_personalized_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer()
+    
+    menu_text = """
+🎭 <b>ПЕРСОНАЛИЗИРОВАННЫЙ ПОДАРОК</b>
+
+Выбери параметры для поиска идеального подарка:
+
+👤 <b>Для кого:</b> (можно пропустить)
+🎉 <b>Повод:</b> (можно пропустить)
+💰 <b>Бюджет:</b> (можно пропустить)
+
+Нажми на кнопки ниже, чтобы задать критерии:
+"""
+    
+    keyboard = [
+        [InlineKeyboardButton("👤 Выбрать получателя", callback_data="gift_select_recipient")],
+        [InlineKeyboardButton("🎉 Выбрать повод", callback_data="gift_select_occasion")],
+        [InlineKeyboardButton("💰 Указать бюджет", callback_data="gift_select_budget")],
+        [InlineKeyboardButton("🎲 Случайная персонализация", callback_data="gift_random_personalized")],
+        [InlineKeyboardButton("🔍 Сгенерировать с текущими параметрами", callback_data="gift_generate_personalized")],
+        [InlineKeyboardButton("⬅️ Назад к идеям", callback_data="gift_ideas_menu")]
+    ]
+    
+    await update.callback_query.edit_message_text(
+        menu_text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    async def gift_themes_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer()
+    
+    menu_text = """
+🎪 <b>ИДЕИ ПО ТЕМАТИКЕ</b>
+
+Выбери тематику для генерации идей:
+
+🎭 <b>Доступные темы:</b>
+• Романтический - для влюбленных
+• Деловой - для коллег и партнеров
+• Детский - для детей и подростков
+• Эко - для любителей экологии
+• Гастрономический - для ценителей вкуса
+• Спортивный - для активных людей
+• Творческий - для художников и мастеров
+
+Каждая тема содержит 3 разные идеи!
+"""
+    
+    keyboard = [
+        [InlineKeyboardButton("❤️ Романтический", callback_data="gift_theme_romantic")],
+        [InlineKeyboardButton("💼 Деловой", callback_data="gift_theme_business")],
+        [InlineKeyboardButton("👶 Детский", callback_data="gift_theme_kids")],
+        [InlineKeyboardButton("🌿 Эко", callback_data="gift_theme_eco")],
+        [InlineKeyboardButton("🍽️ Гастрономический", callback_data="gift_theme_gastronomy")],
+        [InlineKeyboardButton("⚽ Спортивный", callback_data="gift_theme_sport")],
+        [InlineKeyboardButton("🎨 Творческий", callback_data="gift_theme_creative")],
+        [InlineKeyboardButton("🎲 Случайная тема", callback_data="gift_theme_random")],
+        [InlineKeyboardButton("⬅️ Назад к идеям", callback_data="gift_ideas_menu")]
+    ]
+    
+    await update.callback_query.edit_message_text(
+        menu_text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    async def gift_emergency_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer()
+    
+    menu_text = """
+🔥 <b>СРОЧНЫЙ ПОДАРОК</b>
+
+Нужен подарок срочно? Выбери параметры:
+
+💰 <b>Бюджет:</b> До какой суммы?
+⏰ <b>Срок:</b> Когда нужно успеть?
+
+Идеи для покупки сегодня или с быстрой доставкой!
+"""
+    
+    keyboard = [
+        [InlineKeyboardButton("💰 До 2000₽", callback_data="gift_emergency_2000")],
+        [InlineKeyboardButton("💰 До 3000₽", callback_data="gift_emergency_3000")],
+        [InlineKeyboardButton("💰 До 5000₽", callback_data="gift_emergency_5000")],
+        [InlineKeyboardButton("⏰ На сегодня", callback_data="gift_emergency_today")],
+        [InlineKeyboardButton("⏰ До завтра", callback_data="gift_emergency_tomorrow")],
+        [InlineKeyboardButton("⏰ До недели", callback_data="gift_emergency_week")],
+        [InlineKeyboardButton("🎲 Срочный подарок (случайный)", callback_data="gift_emergency_random")],
+        [InlineKeyboardButton("⬅️ Назад к идеям", callback_data="gift_ideas_menu")]
+    ]
+    
+    await update.callback_query.edit_message_text(
+        menu_text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
     # Добавляем кнопки админа
     if admin:
         base.append([InlineKeyboardButton("🏠 СОЗДАТЬ КОМНАТУ", callback_data="create_room_btn")])
@@ -2833,7 +2960,138 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
             
         elif q.data == "wish_examples":
             await wish_examples(update, context)
+            # В начале обработчиков (после wish_examples, перед toast)
+elif q.data == "gift_ideas_menu":
+    await gift_ideas_menu(update, context)
+    
+elif q.data == "gift_basic":
+    idea = generate_gift_idea()
+    await q.edit_message_text(
+        f"🎁 <b>Базовая идея подарка:</b>\n\n{idea}\n\n"
+        f"💡 <b>Совет:</b> учитывай интересы получателя!",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔄 Другая базовая идея", callback_data="gift_basic")],
+            [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
+            [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+        ])
+    )
 
+elif q.data == "gift_personalized_menu":
+    await gift_personalized_menu(update, context)
+    
+elif q.data == "gift_random_personalized":
+    # Случайные параметры
+    recipients = ["мужчина", "женщина", "ребенок", "семья", "друг", "коллега", "любой"]
+    occasions = ["день рождения", "новый год", "8 марта", "23 февраля", "годовщина", "новоселье", "любой"]
+    recipient = random.choice(recipients)
+    occasion = random.choice(occasions)
+    idea = generate_personalized_gift_idea(recipient_type=recipient, occasion=occasion)
+    await q.edit_message_text(
+        f"🎭 <b>Персонализированная идея:</b>\n\n"
+        f"👤 Для: {recipient}\n"
+        f"🎉 Повод: {occasion}\n\n"
+        f"{idea}\n\n"
+        f"💡 <b>Подсказка:</b> Можно уточнить критерии через меню!",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔄 Другая случайная", callback_data="gift_random_personalized")],
+            [InlineKeyboardButton("🎭 Уточнить критерии", callback_data="gift_personalized_menu")],
+            [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+        ])
+    )
+
+elif q.data.startswith("gift_theme_"):
+    theme = q.data.replace("gift_theme_", "")
+    if theme == "random":
+        themes = ["романтический", "деловой", "детский", "эко", "гастрономический", "спортивный", "творческий"]
+        theme = random.choice(themes)
+    
+    ideas = gift_ideas_by_theme(theme, 3)
+    text = f"🎪 <b>Идеи по тематике: {theme.upper()}</b>\n\n"
+    for i, idea in enumerate(ideas, 1):
+        text += f"<b>Идея {i}:</b>\n{idea}\n"
+        if i != len(ideas):
+            text += "─" * 30 + "\n"
+    
+    await q.edit_message_text(
+        text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton(f"🔄 Другие {theme} идеи", callback_data=f"gift_theme_{theme}")],
+            [InlineKeyboardButton("🎪 Выбрать другую тему", callback_data="gift_themes_menu")],
+            [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+        ])
+    )
+
+elif q.data == "gift_themes_menu":
+    await gift_themes_menu(update, context)
+    
+elif q.data.startswith("gift_emergency_"):
+    if "today" in q.data or "tomorrow" in q.data or "week" in q.data:
+        # Обработка сроков
+        if "today" in q.data:
+            time_limit = "сегодня"
+        elif "tomorrow" in q.data:
+            time_limit = "завтра"
+        else:
+            time_limit = "неделя"
+        budget = 2000  # дефолтный бюджет
+        idea = emergency_gift_idea(budget, time_limit)
+    else:
+        # Обработка бюджета
+        if "2000" in q.data:
+            budget = 2000
+        elif "3000" in q.data:
+            budget = 3000
+        elif "5000" in q.data:
+            budget = 5000
+        else:
+            budget = 2000
+            time_limit = "сегодня"
+            idea = emergency_gift_idea(budget, time_limit)
+    
+    await q.edit_message_text(
+        f"{idea}\n\n"
+        f"💡 <b>Совет:</b> Добавь открытку с теплыми словами!",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔥 Другие срочные идеи", callback_data="gift_emergency_random")],
+            [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
+            [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+        ])
+    )
+
+elif q.data == "gift_emergency_menu":
+    await gift_emergency_menu(update, context)
+    
+elif q.data == "gift_emergency_random":
+    budget = random.choice([1000, 2000, 3000, 5000])
+    time_limit = random.choice(["сегодня", "завтра", "неделя"])
+    idea = emergency_gift_idea(budget, time_limit)
+    await q.edit_message_text(
+        f"{idea}\n\n"
+        f"💡 <b>Совет:</b> Не забудь про красивую упаковку!",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔥 Другая срочная идея", callback_data="gift_emergency_random")],
+            [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
+            [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+        ])
+    )
+
+elif q.data == "gift_combinations":
+    combo = get_gift_combinations()
+    await q.edit_message_text(
+        f"{combo}\n\n"
+        f"💡 <b>Совет:</b> Можно заменить любой элемент в наборе на аналогичный!",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🎨 Другой набор", callback_data="gift_combinations")],
+            [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
+            [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+        ])
+    )
         elif q.data == "toast":
             await q.edit_message_text(
                 f"✨ <b>Тост дня:</b>\n{toast_of_day()}", 
@@ -2841,14 +3099,6 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
                 reply_markup=back_to_menu_keyboard()
             )
             
-        elif q.data == "gift_idea":
-            idea = generate_gift_idea()
-            await q.edit_message_text(
-                f"🎁 <b>Идея подарка:</b>\n\n{idea}\n\n"
-                f"💡 <b>Совет:</b> учитывай интересы получателя!",
-                parse_mode='HTML',
-                reply_markup=back_to_menu_keyboard()
-            )
             
         elif q.data == "quest_menu":
             await enhanced_quest_menu(update, context)
