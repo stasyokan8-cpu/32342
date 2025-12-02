@@ -205,7 +205,7 @@ def add_achievement(user_id, achievement_key):
 # 🎁 РАСШИРЕННЫЙ ГЕНЕРАТОР ИДЕЙ ПОДАРКОВ
 # -------------------------------------------------------------------
 
-    async def gift_ideas_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def gift_ideas_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
     menu_text = """
@@ -236,7 +236,8 @@ def add_achievement(user_id, achievement_key):
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-    async def gift_personalized_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+async def gift_personalized_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
     menu_text = """
@@ -265,7 +266,8 @@ def add_achievement(user_id, achievement_key):
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-    async def gift_themes_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+async def gift_themes_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
     menu_text = """
@@ -302,7 +304,8 @@ def add_achievement(user_id, achievement_key):
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-    async def gift_emergency_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+async def gift_emergency_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
     menu_text = """
@@ -332,6 +335,10 @@ def add_achievement(user_id, achievement_key):
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
+def generate_gift_idea():
+    """Базовая функция генерации идеи подарка"""
+    return generate_personalized_gift_idea()
 
 def generate_personalized_gift_idea(recipient_type=None, occasion=None, max_price=None):
     """
@@ -2921,138 +2928,138 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
             
         elif q.data == "wish_examples":
             await wish_examples(update, context)
-            # В начале обработчиков (после wish_examples, перед toast)
-elif q.data == "gift_ideas_menu":
-    await gift_ideas_menu(update, context)
-    
-elif q.data == "gift_basic":
-    idea = generate_gift_idea()
-    await q.edit_message_text(
-        f"🎁 <b>Базовая идея подарка:</b>\n\n{idea}\n\n"
-        f"💡 <b>Совет:</b> учитывай интересы получателя!",
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔄 Другая базовая идея", callback_data="gift_basic")],
-            [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
-            [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
-        ])
-    )
+            
+        elif q.data == "gift_ideas_menu":
+            await gift_ideas_menu(update, context)
+            
+        elif q.data == "gift_basic":
+            idea = generate_gift_idea()
+            await q.edit_message_text(
+                f"🎁 <b>Базовая идея подарка:</b>\n\n{idea}\n\n"
+                f"💡 <b>Совет:</b> учитывай интересы получателя!",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔄 Другая базовая идея", callback_data="gift_basic")],
+                    [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
+                    [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+                ])
+            )
 
-elif q.data == "gift_personalized_menu":
-    await gift_personalized_menu(update, context)
-    
-elif q.data == "gift_random_personalized":
-    # Случайные параметры
-    recipients = ["мужчина", "женщина", "ребенок", "семья", "друг", "коллега", "любой"]
-    occasions = ["день рождения", "новый год", "8 марта", "23 февраля", "годовщина", "новоселье", "любой"]
-    recipient = random.choice(recipients)
-    occasion = random.choice(occasions)
-    idea = generate_personalized_gift_idea(recipient_type=recipient, occasion=occasion)
-    await q.edit_message_text(
-        f"🎭 <b>Персонализированная идея:</b>\n\n"
-        f"👤 Для: {recipient}\n"
-        f"🎉 Повод: {occasion}\n\n"
-        f"{idea}\n\n"
-        f"💡 <b>Подсказка:</b> Можно уточнить критерии через меню!",
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔄 Другая случайная", callback_data="gift_random_personalized")],
-            [InlineKeyboardButton("🎭 Уточнить критерии", callback_data="gift_personalized_menu")],
-            [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
-        ])
-    )
+        elif q.data == "gift_personalized_menu":
+            await gift_personalized_menu(update, context)
+            
+        elif q.data == "gift_random_personalized":
+            # Случайные параметры
+            recipients = ["мужчина", "женщина", "ребенок", "семья", "друг", "коллега", "любой"]
+            occasions = ["день рождения", "новый год", "8 марта", "23 февраля", "годовщина", "новоселье", "любой"]
+            recipient = random.choice(recipients)
+            occasion = random.choice(occasions)
+            idea = generate_personalized_gift_idea(recipient_type=recipient, occasion=occasion)
+            await q.edit_message_text(
+                f"🎭 <b>Персонализированная идея:</b>\n\n"
+                f"👤 Для: {recipient}\n"
+                f"🎉 Повод: {occasion}\n\n"
+                f"{idea}\n\n"
+                f"💡 <b>Подсказка:</b> Можно уточнить критерии через меню!",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔄 Другая случайная", callback_data="gift_random_personalized")],
+                    [InlineKeyboardButton("🎭 Уточнить критерии", callback_data="gift_personalized_menu")],
+                    [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+                ])
+            )
 
-elif q.data.startswith("gift_theme_"):
-    theme = q.data.replace("gift_theme_", "")
-    if theme == "random":
-        themes = ["романтический", "деловой", "детский", "эко", "гастрономический", "спортивный", "творческий"]
-        theme = random.choice(themes)
-    
-    ideas = gift_ideas_by_theme(theme, 3)
-    text = f"🎪 <b>Идеи по тематике: {theme.upper()}</b>\n\n"
-    for i, idea in enumerate(ideas, 1):
-        text += f"<b>Идея {i}:</b>\n{idea}\n"
-        if i != len(ideas):
-            text += "─" * 30 + "\n"
-    
-    await q.edit_message_text(
-        text,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton(f"🔄 Другие {theme} идеи", callback_data=f"gift_theme_{theme}")],
-            [InlineKeyboardButton("🎪 Выбрать другую тему", callback_data="gift_themes_menu")],
-            [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
-        ])
-    )
+        elif q.data.startswith("gift_theme_"):
+            theme = q.data.replace("gift_theme_", "")
+            if theme == "random":
+                themes = ["романтический", "деловой", "детский", "эко", "гастрономический", "спортивный", "творческий"]
+                theme = random.choice(themes)
+            
+            ideas = gift_ideas_by_theme(theme, 3)
+            text = f"🎪 <b>Идеи по тематике: {theme.upper()}</b>\n\n"
+            for i, idea in enumerate(ideas, 1):
+                text += f"<b>Идея {i}:</b>\n{idea}\n"
+                if i != len(ideas):
+                    text += "─" * 30 + "\n"
+            
+            await q.edit_message_text(
+                text,
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton(f"🔄 Другие {theme} идеи", callback_data=f"gift_theme_{theme}")],
+                    [InlineKeyboardButton("🎪 Выбрать другую тему", callback_data="gift_themes_menu")],
+                    [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+                ])
+            )
 
-elif q.data == "gift_themes_menu":
-    await gift_themes_menu(update, context)
-    
-elif q.data.startswith("gift_emergency_"):
-    if "today" in q.data or "tomorrow" in q.data or "week" in q.data:
-        # Обработка сроков
-        if "today" in q.data:
-            time_limit = "сегодня"
-        elif "tomorrow" in q.data:
-            time_limit = "завтра"
-        else:
-            time_limit = "неделя"
-        budget = 2000  # дефолтный бюджет
-        idea = emergency_gift_idea(budget, time_limit)
-    else:
-        # Обработка бюджета
-        if "2000" in q.data:
-            budget = 2000
-        elif "3000" in q.data:
-            budget = 3000
-        elif "5000" in q.data:
-            budget = 5000
-        else:
-            budget = 2000
-            time_limit = "сегодня"
+        elif q.data == "gift_themes_menu":
+            await gift_themes_menu(update, context)
+            
+        elif q.data.startswith("gift_emergency_"):
+            if "today" in q.data or "tomorrow" in q.data or "week" in q.data:
+                # Обработка сроков
+                if "today" in q.data:
+                    time_limit = "сегодня"
+                elif "tomorrow" in q.data:
+                    time_limit = "завтра"
+                else:
+                    time_limit = "неделя"
+                budget = 2000  # дефолтный бюджет
+                idea = emergency_gift_idea(budget, time_limit)
+            else:
+                # Обработка бюджета
+                if "2000" in q.data:
+                    budget = 2000
+                elif "3000" in q.data:
+                    budget = 3000
+                elif "5000" in q.data:
+                    budget = 5000
+                else:
+                    budget = 2000
+                    time_limit = "сегодня"
+                    idea = emergency_gift_idea(budget, time_limit)
+            
+            await q.edit_message_text(
+                f"{idea}\n\n"
+                f"💡 <b>Совет:</b> Добавь открытку с теплыми словами!",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔥 Другие срочные идеи", callback_data="gift_emergency_random")],
+                    [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
+                    [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+                ])
+            )
+
+        elif q.data == "gift_emergency_menu":
+            await gift_emergency_menu(update, context)
+            
+        elif q.data == "gift_emergency_random":
+            budget = random.choice([1000, 2000, 3000, 5000])
+            time_limit = random.choice(["сегодня", "завтра", "неделя"])
             idea = emergency_gift_idea(budget, time_limit)
-    
-    await q.edit_message_text(
-        f"{idea}\n\n"
-        f"💡 <b>Совет:</b> Добавь открытку с теплыми словами!",
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔥 Другие срочные идеи", callback_data="gift_emergency_random")],
-            [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
-            [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
-        ])
-    )
+            await q.edit_message_text(
+                f"{idea}\n\n"
+                f"💡 <b>Совет:</b> Не забудь про красивую упаковку!",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔥 Другая срочная идея", callback_data="gift_emergency_random")],
+                    [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
+                    [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+                ])
+            )
 
-elif q.data == "gift_emergency_menu":
-    await gift_emergency_menu(update, context)
-    
-elif q.data == "gift_emergency_random":
-    budget = random.choice([1000, 2000, 3000, 5000])
-    time_limit = random.choice(["сегодня", "завтра", "неделя"])
-    idea = emergency_gift_idea(budget, time_limit)
-    await q.edit_message_text(
-        f"{idea}\n\n"
-        f"💡 <b>Совет:</b> Не забудь про красивую упаковку!",
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔥 Другая срочная идея", callback_data="gift_emergency_random")],
-            [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
-            [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
-        ])
-    )
-
-elif q.data == "gift_combinations":
-    combo = get_gift_combinations()
-    await q.edit_message_text(
-        f"{combo}\n\n"
-        f"💡 <b>Совет:</b> Можно заменить любой элемент в наборе на аналогичный!",
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🎨 Другой набор", callback_data="gift_combinations")],
-            [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
-            [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
-        ])
-    )
+        elif q.data == "gift_combinations":
+            combo = get_gift_combinations()
+            await q.edit_message_text(
+                f"{combo}\n\n"
+                f"💡 <b>Совет:</b> Можно заменить любой элемент в наборе на аналогичный!",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🎨 Другой набор", callback_data="gift_combinations")],
+                    [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
+                    [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+                ])
+            )
         elif q.data == "toast":
             await q.edit_message_text(
                 f"✨ <b>Тост дня:</b>\n{toast_of_day()}", 
