@@ -1,6 +1,7 @@
 { pkgs }: {
   deps = [
-    pkgs.python3
-    pkgs.python3Packages.pip
+    pkgs.python310
+    pkgs.python310Packages.pip
+    pkgs.python310Packages.virtualenv
   ];
 }
