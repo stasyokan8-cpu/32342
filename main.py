@@ -240,16 +240,26 @@ async def gift_ideas_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def gift_personalized_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
-    menu_text = """
+    # Получаем сохранённые параметры
+    gift_params = context.user_data.get("gift_params", {})
+    
+    recipient = gift_params.get("recipient", "не выбран")
+    occasion = gift_params.get("occasion", "не выбран")
+    budget = gift_params.get("budget", "не выбран")
+    
+    if budget == "0":
+        budget = "любой"
+    
+    menu_text = f"""
 🎭 <b>ПЕРСОНАЛИЗИРОВАННЫЙ ПОДАРОК</b>
 
 Выбери параметры для поиска идеального подарка:
 
-👤 <b>Для кого:</b> (можно пропустить)
-🎉 <b>Повод:</b> (можно пропустить)
-💰 <b>Бюджет:</b> (можно пропустить)
+👤 <b>Получатель:</b> {recipient}
+🎉 <b>Повод:</b> {occasion}
+💰 <b>Бюджет:</b> {budget}{'₽' if budget != 'любой' and budget != 'не выбран' else ''}
 
-Нажми на кнопки ниже, чтобы задать критерии:
+💡 <b>Совет:</b> Чем точнее параметры, тем лучше результат!
 """
     
     keyboard = [
@@ -257,16 +267,20 @@ async def gift_personalized_menu(update: Update, context: ContextTypes.DEFAULT_T
         [InlineKeyboardButton("🎉 Выбрать повод", callback_data="gift_select_occasion")],
         [InlineKeyboardButton("💰 Указать бюджет", callback_data="gift_select_budget")],
         [InlineKeyboardButton("🎲 Случайная персонализация", callback_data="gift_random_personalized")],
-        [InlineKeyboardButton("🔍 Сгенерировать с текущими параметрами", callback_data="gift_generate_personalized")],
-        [InlineKeyboardButton("⬅️ Назад к идеям", callback_data="gift_ideas_menu")]
     ]
+    
+    # Добавляем кнопку генерации, если есть хотя бы один параметр
+    if recipient != "не выбран" or occasion != "не выбран" or budget != "не выбран":
+        keyboard.append([InlineKeyboardButton("🔍 Сгенерировать с этими параметрами", callback_data="gift_generate_personalized")])
+    
+    keyboard.append([InlineKeyboardButton("⬅️ Назад к идеям", callback_data="gift_ideas_menu")])
     
     await update.callback_query.edit_message_text(
         menu_text,
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-
+    
 async def gift_themes_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
@@ -283,18 +297,24 @@ async def gift_themes_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • Гастрономический - для ценителей вкуса
 • Спортивный - для активных людей
 • Творческий - для художников и мастеров
+• Технический - для гиков и программистов
+• Музыкальный - для музыкантов и меломаноз
+• Путешествия - для исследователей мира
 
 Каждая тема содержит 3 разные идеи!
 """
     
     keyboard = [
-        [InlineKeyboardButton("❤️ Романтический", callback_data="gift_theme_romantic")],
-        [InlineKeyboardButton("💼 Деловой", callback_data="gift_theme_business")],
-        [InlineKeyboardButton("👶 Детский", callback_data="gift_theme_kids")],
-        [InlineKeyboardButton("🌿 Эко", callback_data="gift_theme_eco")],
-        [InlineKeyboardButton("🍽️ Гастрономический", callback_data="gift_theme_gastronomy")],
-        [InlineKeyboardButton("⚽ Спортивный", callback_data="gift_theme_sport")],
-        [InlineKeyboardButton("🎨 Творческий", callback_data="gift_theme_creative")],
+        [InlineKeyboardButton("❤️ Романтический", callback_data="gift_theme_romantic"),
+         InlineKeyboardButton("💼 Деловой", callback_data="gift_theme_business")],
+        [InlineKeyboardButton("👶 Детский", callback_data="gift_theme_kids"),
+         InlineKeyboardButton("🌿 Эко", callback_data="gift_theme_eco")],
+        [InlineKeyboardButton("🍽️ Гастрономический", callback_data="gift_theme_gastronomy"),
+         InlineKeyboardButton("⚽ Спортивный", callback_data="gift_theme_sport")],
+        [InlineKeyboardButton("🎨 Творческий", callback_data="gift_theme_creative"),
+         InlineKeyboardButton("💻 Технический", callback_data="gift_theme_technical")],
+        [InlineKeyboardButton("🎵 Музыкальный", callback_data="gift_theme_music"),
+         InlineKeyboardButton("✈️ Путешествия", callback_data="gift_theme_travel")],
         [InlineKeyboardButton("🎲 Случайная тема", callback_data="gift_theme_random")],
         [InlineKeyboardButton("⬅️ Назад к идеям", callback_data="gift_ideas_menu")]
     ]
@@ -358,6 +378,12 @@ def generate_personalized_gift_idea(recipient_type=None, occasion=None, max_pric
                 {"name": "Электронная фоторамка", "price_range": "2000-5000", "recipient": "пожилой", "occasion": "день памяти"},
                 {"name": "Внешний аккумулятор 20000 mAh", "price_range": "1500-4000", "recipient": "путешественник", "occasion": "отпуск"},
                 {"name": "Умный будильник-симулятор рассвета", "price_range": "3000-7000", "recipient": "взрослый", "occasion": "любой"},
+                {"name": "Умный термос с подогревом", "price_range": "3000-7000", "recipient": "водитель", "occasion": "зима"},
+                {"name": "Проектор для фильмов под открытым небом", "price_range": "8000-20000", "recipient": "киноман", "occasion": "отпуск"},
+                {"name": "Электронная книга с водонепроницаемым корпусом", "price_range": "4000-10000", "recipient": "читатель", "occasion": "пляж"},
+                {"name": "Умная розетка с голосовым управлением", "price_range": "1500-3500", "recipient": "технолюб", "occasion": "новоселье"},
+                {"name": "Беспроводная клавиатура для планшета", "price_range": "2000-5000", "recipient": "студент", "occasion": "1 сентября"},
+                {"name": "Виртуальные очки для смартфона", "price_range": "1000-3000", "recipient": "геймер", "occasion": "день рождения"},
             ],
             "description": "Современные устройства для комфорта и продуктивности"
         },
@@ -371,6 +397,12 @@ def generate_personalized_gift_idea(recipient_type=None, occasion=None, max_pric
                 {"name": "Гончарный круг электрический мини", "price_range": "5000-15000", "recipient": "взрослый", "occasion": "хобби"},
                 {"name": "Набор для создания духов", "price_range": "3000-7000", "recipient": "женщина", "occasion": "8 марта"},
                 {"name": "Конструктор металлический 3000 деталей", "price_range": "4000-9000", "recipient": "мужчина", "occasion": "23 февраля"},
+                {"name": "Набор для создания свечей из соевого воска", "price_range": "2500-6000", "recipient": "рукодельница", "occasion": "хобби"},
+                {"name": "Электронный конструктор Arduino", "price_range": "4000-12000", "recipient": "программист", "occasion": "день рождения"},
+                {"name": "Набор для валяния игрушек из шерсти", "price_range": "2000-5000", "recipient": "творческий", "occasion": "зима"},
+                {"name": "Гравёр для создания узоров на металле", "price_range": "3000-8000", "recipient": "мастер", "occasion": "любой"},
+                {"name": "Набор для создания мозаики", "price_range": "1500-4000", "recipient": "ребенок", "occasion": "развивающий"},
+                {"name": "Лепка из полимерной глины", "price_range": "1000-3000", "recipient": "художник", "occasion": "творчество"},
             ],
             "description": "Для развития талантов и приятного времяпрепровождения"
         },
@@ -449,6 +481,42 @@ def generate_personalized_gift_idea(recipient_type=None, occasion=None, max_pric
             "description": "Для истинных ценителей вкусной еды и напитков"
         },
         
+        "🛠 DIY и инструменты": {
+            "items": [
+                {"name": "Универсальный мультитул Leatherman", "price_range": "5000-15000", "recipient": "мужчина", "occasion": "23 февраля"},
+                {"name": "Набор качественных отверток", "price_range": "1500-4000", "recipient": "хозяин", "occasion": "новоселье"},
+                {"name": "Электрический лобзик", "price_range": "3000-8000", "recipient": "мастер", "occasion": "хобби"},
+                {"name": "Набор для резьбы по дереву", "price_range": "2000-6000", "recipient": "резчик", "occasion": "творчество"},
+                {"name": "Многофункциональный степлер", "price_range": "1000-3000", "recipient": "офисный", "occasion": "работа"},
+                {"name": "Измеритель уровня лазерный", "price_range": "3000-7000", "recipient": "строитель", "occasion": "профессиональный"},
+            ],
+            "description": "Инструменты для мастеров и умельцев"
+        },
+
+        "🎵 Музыка и звук": {
+            "items": [
+                {"name": "Мини-синтезатор KORG", "price_range": "4000-10000", "recipient": "музыкант", "occasion": "творчество"},
+                {"name": "Качественный метроном", "price_range": "1000-3000", "recipient": "ученик", "occasion": "обучение"},
+                {"name": "Набор музыкальных инструментов для детей", "price_range": "2000-5000", "recipient": "ребенок", "occasion": "развитие"},
+                {"name": "Цифровая гитара-тренажёр", "price_range": "5000-12000", "recipient": "гитарист", "occasion": "практика"},
+                {"name": "Студийные наушники", "price_range": "3000-8000", "recipient": "звукорежиссер", "occasion": "работа"},
+                {"name": "Портативный караоке-микрофон", "price_range": "1500-4000", "recipient": "весельчак", "occasion": "вечеринка"},
+            ],
+            "description": "Для ценителей звука и музыки"
+        },
+
+        "🧳 Эко и осознанное потребление": {
+            "items": [
+                {"name": "Набор многоразовых эко-сумок", "price_range": "500-2000", "recipient": "экоактивист", "occasion": "любой"},
+                {"name": "Бамбуковая зубная щётка", "price_range": "300-1000", "recipient": "зож", "occasion": "здоровье"},
+                {"name": "Многоразовые восковые салфетки", "price_range": "800-2500", "recipient": "хозяйка", "occasion": "кухня"},
+                {"name": "Эко-набор для пикника", "price_range": "2000-5000", "recipient": "семья", "occasion": "отпуск"},
+                {"name": "Компостер для кухни", "price_range": "1500-4000", "recipient": "садовод", "occasion": "дом"},
+                {"name": "Набор для раздельного сбора мусора", "price_range": "1000-3000", "recipient": "ответственный", "occasion": "новоселье"},
+            ],
+            "description": "Экологичные решения для повседневной жизни"
+        },       
+
         "✈️ Путешествия и приключения": {
             "items": [
                 {"name": "Рюкзак-трансформер для путешествий", "price_range": "3000-8000", "recipient": "путешественник", "occasion": "отпуск"},
@@ -584,13 +652,16 @@ def gift_ideas_by_theme(theme, count=3):
     """Генератор нескольких идей по определенной тематике"""
     
     themes = {
-        "романтический": ["мужчина", "женщина", "годовщина"],
-        "деловой": ["коллега", "взрослый", "любой"],
-        "детский": ["ребенок", "семья", "день рождения"],
-        "эко": ["эко-активист", "взрослый", "любой"],
-        "гастрономический": ["гурман", "кулинар", "встреча гостей"],
-        "спортивный": ["спортсмен", "активный", "зож"],
-        "творческий": ["творческий", "художник", "рукодельница"]
+        "романтический": ["мужчина", "женщина", "годовщина", "любовь"],
+        "деловой": ["коллега", "взрослый", "босс", "партнер"],
+        "детский": ["ребенок", "семья", "день рождения", "игрушки"],
+        "эко": ["экоактивист", "взрослый", "садовод", "природа"],
+        "гастрономический": ["гурман", "кулинар", "шеф", "встреча гостей"],
+        "спортивный": ["спортсмен", "активный", "зож", "тренер"],
+        "творческий": ["творческий", "художник", "рукодельница", "мастер"],
+        "технический": ["технолюб", "программист", "гик", "инженер"],
+        "музыкальный": ["музыкант", "меломан", "диджей", "певун"],
+        "путешествия": ["путешественник", "турист", "исследователь", "отдых"]
     }
     
     if theme not in themes:
@@ -695,36 +766,6 @@ def get_gift_combinations():
 💰 Общий бюджет: {combo['total']}
 💡 Идея: Все предметы можно красиво упаковать в одну коробку!
     """
-
-
-# Пример использования расширенного функционала:
-if __name__ == "__main__":
-    print("=" * 50)
-    print("🎯 БАЗОВАЯ ФУНКЦИЯ (сохранена без изменений):")
-    print("=" * 50)
-    print(generate_gift_idea())
-    
-    print("\n" + "=" * 50)
-    print("🚀 РАСШИРЕННЫЙ ГЕНЕРАТОР:")
-    print("=" * 50)
-    print(generate_personalized_gift_idea(recipient_type="женщина", occasion="день рождения"))
-    
-    print("\n" + "=" * 50)
-    print("🎭 ИДЕИ ПО ТЕМАТИКЕ (романтические):")
-    print("=" * 50)
-    for idea in gift_ideas_by_theme("романтический", 2):
-        print(idea)
-        print("-" * 30)
-    
-    print("\n" + "=" * 50)
-    print("🔥 СРОЧНЫЙ ПОДАРОК:")
-    print("=" * 50)
-    print(emergency_gift_idea(1500, "сегодня"))
-    
-    print("\n" + "=" * 50)
-    print("🎪 ГОТОВЫЕ КОМБИНАЦИИ:")
-    print("=" * 50)
-    print(get_gift_combinations())
 
 # -------------------------------------------------------------------
 # 🎮 РАЗДЕЛ: ОСНОВНЫЕ КОМАНДЫ И ИНТЕРФЕЙС
@@ -2933,6 +2974,35 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
             await gift_ideas_menu(update, context)
             
         elif q.data == "gift_basic":
+                    elif q.data == "gift_personalized_menu":
+                        await gift_personalized_menu(update, context)
+                        
+                    elif q.data == "gift_select_recipient":
+                        await show_recipient_keyboard(update, context)
+                        
+                    elif q.data == "gift_select_occasion":
+                        await show_occasion_keyboard(update, context)
+                        
+                    elif q.data == "gift_select_budget":
+                        await show_budget_keyboard(update, context)
+                        
+                    elif q.data.startswith("gift_recipient_"):
+                        recipient = q.data.replace("gift_recipient_", "")
+                        context.user_data.setdefault("gift_params", {})["recipient"] = recipient
+                        await gift_personalized_menu(update, context)
+                        
+                    elif q.data.startswith("gift_occasion_"):
+                        occasion = q.data.replace("gift_occasion_", "")
+                        context.user_data.setdefault("gift_params", {})["occasion"] = occasion
+                        await gift_personalized_menu(update, context)
+                        
+                    elif q.data.startswith("gift_budget_"):
+                        budget = q.data.replace("gift_budget_", "")
+                        context.user_data.setdefault("gift_params", {})["budget"] = budget
+                        await gift_personalized_menu(update, context)
+                        
+                    elif q.data == "gift_generate_personalized":
+                        await generate_with_saved_params(update, context)
             idea = generate_gift_idea()
             await q.edit_message_text(
                 f"🎁 <b>Базовая идея подарка:</b>\n\n{idea}\n\n"
@@ -3050,6 +3120,125 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
 
         elif q.data == "gift_combinations":
             combo = get_gift_combinations()
+
+                async def show_recipient_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+                    await update.callback_query.answer()
+                    
+                    recipients = [
+                        ("👨 Мужчине", "мужчина"),
+                        ("👩 Женщине", "женщина"),
+                        ("👶 Ребёнку", "ребенок"),
+                        ("👪 Семье", "семья"),
+                        ("👴 Пожилому человеку", "пожилой"),
+                        ("🤝 Другу", "друг"),
+                        ("💼 Коллеге", "коллега"),
+                        ("🎭 Любому", "любой")
+                    ]
+                    
+                    keyboard = []
+                    for text, data in recipients:
+                        keyboard.append([InlineKeyboardButton(text, callback_data=f"gift_recipient_{data}")])
+                    
+                    keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="gift_personalized_menu")])
+                    
+                    await update.callback_query.edit_message_text(
+                        "👤 <b>Выбери тип получателя:</b>\n\n"
+                        "Это поможет сузить круг идей для подарка.",
+                        parse_mode='HTML',
+                        reply_markup=InlineKeyboardMarkup(keyboard)
+                    )
+
+                async def show_occasion_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+                    await update.callback_query.answer()
+                    
+                    occasions = [
+                        ("🎂 День рождения", "день рождения"),
+                        ("🎄 Новый год", "новый год"),
+                        ("💝 8 Марта", "8 марта"),
+                        ("🪖 23 Февраля", "23 февраля"),
+                        ("💖 Годовщина", "годовщина"),
+                        ("🏡 Новоселье", "новоселье"),
+                        ("🎓 Выпускной", "выпускной"),
+                        ("🎉 Просто так", "любой")
+                    ]
+                    
+                    keyboard = []
+                    for text, data in occasions:
+                        keyboard.append([InlineKeyboardButton(text, callback_data=f"gift_occasion_{data}")])
+                    
+                    keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="gift_personalized_menu")])
+                    
+                    await update.callback_query.edit_message_text(
+                        "🎉 <b>Выбери повод:</b>\n\n"
+                        "Разные праздники предполагают разные типы подарков.",
+                        parse_mode='HTML',
+                        reply_markup=InlineKeyboardMarkup(keyboard)
+                    )
+
+                async def show_budget_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+                    await update.callback_query.answer()
+                    
+                    budgets = [
+                        ("💰 До 1000₽", "1000"),
+                        ("💰 До 2000₽", "2000"),
+                        ("💰 До 3000₽", "3000"),
+                        ("💰 До 5000₽", "5000"),
+                        ("💰 До 10000₽", "10000"),
+                        ("💰 Любой бюджет", "0")
+                    ]
+                    
+                    keyboard = []
+                    for text, data in budgets:
+                        keyboard.append([InlineKeyboardButton(text, callback_data=f"gift_budget_{data}")])
+                    
+                    keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="gift_personalized_menu")])
+                    
+                    await update.callback_query.edit_message_text(
+                        "💰 <b>Укажи примерный бюджет:</b>\n\n"
+                        "Это поможет подобрать подарок в нужной ценовой категории.",
+                        parse_mode='HTML',
+                        reply_markup=InlineKeyboardMarkup(keyboard)
+                    )
+
+                async def generate_with_saved_params(update: Update, context: ContextTypes.DEFAULT_TYPE):
+                    await update.callback_query.answer()
+                    
+                    user_data = context.user_data.get("gift_params", {})
+                    recipient = user_data.get("recipient", "любой")
+                    occasion = user_data.get("occasion", "любой")
+                    budget = user_data.get("budget", 0)
+                    
+                    if budget == 0:
+                        budget = None
+                    else:
+                        budget = int(budget)
+                    
+                    idea = generate_personalized_gift_idea(
+                        recipient_type=recipient,
+                        occasion=occasion,
+                        max_price=budget
+                    )
+                    
+                    # Сообщение с текущими параметрами
+                    params_text = f"👤 <b>Получатель:</b> {recipient}\n"
+                    params_text += f"🎉 <b>Повод:</b> {occasion}\n"
+                    if budget:
+                        params_text += f"💰 <b>Бюджет:</b> до {budget}₽\n"
+                    
+                    keyboard = [
+                        [InlineKeyboardButton("🔄 Ещё идею с этими параметрами", callback_data="gift_generate_personalized")],
+                        [InlineKeyboardButton("⚙️ Изменить параметры", callback_data="gift_personalized_menu")],
+                        [InlineKeyboardButton("⬅️ В меню идей", callback_data="gift_ideas_menu")]
+                    ]
+                    
+                    await update.callback_query.edit_message_text(
+                        f"🎁 <b>Персонализированная идея</b>\n\n"
+                        f"{params_text}\n"
+                        f"{'-'*40}\n"
+                        f"{idea}",
+                        parse_mode='HTML',
+                        reply_markup=InlineKeyboardMarkup(keyboard)
+                    )
             await q.edit_message_text(
                 f"{combo}\n\n"
                 f"💡 <b>Совет:</b> Можно заменить любой элемент в наборе на аналогичный!",
