@@ -1820,7 +1820,7 @@ async def show_battle_interface(update: Update, context: ContextTypes.DEFAULT_TY
     
     # Добавляем лог битвы если есть
     if battle_state["battle_log"]:
-        battle_text += "\n\n📜 <b>Последние события:</b>\n" + "\n.join(battle_state['battle_log'][-3:]) + "\n"
+        battle_text += "\n\n📜 <b>Последние события:</b>\n" + "\n".join(battle_state['battle_log'][-3:]) + "\n"
     
     # Разные кнопки в зависимости от фазы
     keyboard = [
