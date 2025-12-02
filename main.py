@@ -3121,134 +3121,134 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
         elif q.data == "gift_combinations":
             combo = get_gift_combinations()
 
-        async def show_recipient_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            await update.callback_query.answer()
-            
-            recipients = [
-                ("👨 Мужчине", "мужчина"),
-                ("👩 Женщине", "женщина"),
-                ("👶 Ребёнку", "ребенок"),
-                ("👪 Семье", "семья"),
-                ("👴 Пожилому человеку", "пожилой"),
-                ("🤝 Другу", "друг"),
-                ("💼 Коллеге", "коллега"),
-                ("🎭 Любому", "любой")
-            ]
-            
-            keyboard = []
-            for text, data in recipients:
-                keyboard.append([InlineKeyboardButton(text, callback_data=f"gift_recipient_{data}")])
-            
-            keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="gift_personalized_menu")])
-            
-            await update.callback_query.edit_message_text(
-                "👤 <b>Выбери тип получателя:</b>\n\n"
-                "Это поможет сузить круг идей для подарка.",
-                parse_mode='HTML',
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
+            async def show_recipient_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+                await update.callback_query.answer()
+                
+                recipients = [
+                    ("👨 Мужчине", "мужчина"),
+                    ("👩 Женщине", "женщина"),
+                    ("👶 Ребёнку", "ребенок"),
+                    ("👪 Семье", "семья"),
+                    ("👴 Пожилому человеку", "пожилой"),
+                    ("🤝 Другу", "друг"),
+                    ("💼 Коллеге", "коллега"),
+                    ("🎭 Любому", "любой")
+                ]
+                
+                keyboard = []
+                for text, data in recipients:
+                    keyboard.append([InlineKeyboardButton(text, callback_data=f"gift_recipient_{data}")])
+                
+                keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="gift_personalized_menu")])
+                
+                await update.callback_query.edit_message_text(
+                    "👤 <b>Выбери тип получателя:</b>\n\n"
+                    "Это поможет сузить круг идей для подарка.",
+                    parse_mode='HTML',
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
 
-        async def show_occasion_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            await update.callback_query.answer()
-            
-            occasions = [
-                ("🎂 День рождения", "день рождения"),
-                ("🎄 Новый год", "новый год"),
-                ("💝 8 Марта", "8 марта"),
-                ("🪖 23 Февраля", "23 февраля"),
-                ("💖 Годовщина", "годовщина"),
-                ("🏡 Новоселье", "новоселье"),
-                ("🎓 Выпускной", "выпускной"),
-                ("🎉 Просто так", "любой")
-            ]
-            
-            keyboard = []
-            for text, data in occasions:
-                keyboard.append([InlineKeyboardButton(text, callback_data=f"gift_occasion_{data}")])
-            
-            keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="gift_personalized_menu")])
-            
-            await update.callback_query.edit_message_text(
-                "🎉 <b>Выбери повод:</b>\n\n"
-                "Разные праздники предполагают разные типы подарков.",
-                parse_mode='HTML',
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
+            async def show_occasion_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+                await update.callback_query.answer()
+                
+                occasions = [
+                    ("🎂 День рождения", "день рождения"),
+                    ("🎄 Новый год", "новый год"),
+                    ("💝 8 Марта", "8 марта"),
+                    ("🪖 23 Февраля", "23 февраля"),
+                    ("💖 Годовщина", "годовщина"),
+                    ("🏡 Новоселье", "новоселье"),
+                    ("🎓 Выпускной", "выпускной"),
+                    ("🎉 Просто так", "любой")
+                ]
+                
+                keyboard = []
+                for text, data in occasions:
+                    keyboard.append([InlineKeyboardButton(text, callback_data=f"gift_occasion_{data}")])
+                
+                keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="gift_personalized_menu")])
+                
+                await update.callback_query.edit_message_text(
+                    "🎉 <b>Выбери повод:</b>\n\n"
+                    "Разные праздники предполагают разные типы подарков.",
+                    parse_mode='HTML',
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
 
-        async def show_budget_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            await update.callback_query.answer()
-            
-            budgets = [
-                ("💰 До 1000₽", "1000"),
-                ("💰 До 2000₽", "2000"),
-                ("💰 До 3000₽", "3000"),
-                ("💰 До 5000₽", "5000"),
-                ("💰 До 10000₽", "10000"),
-                ("💰 Любой бюджет", "0")
-            ]
-            
-            keyboard = []
-            for text, data in budgets:
-                keyboard.append([InlineKeyboardButton(text, callback_data=f"gift_budget_{data}")])
-            
-            keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="gift_personalized_menu")])
-            
-            await update.callback_query.edit_message_text(
-                "💰 <b>Укажи примерный бюджет:</b>\n\n"
-                "Это поможет подобрать подарок в нужной ценовой категории.",
-                parse_mode='HTML',
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
+            async def show_budget_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+                await update.callback_query.answer()
+                
+                budgets = [
+                    ("💰 До 1000₽", "1000"),
+                    ("💰 До 2000₽", "2000"),
+                    ("💰 До 3000₽", "3000"),
+                    ("💰 До 5000₽", "5000"),
+                    ("💰 До 10000₽", "10000"),
+                    ("💰 Любой бюджет", "0")
+                ]
+                
+                keyboard = []
+                for text, data in budgets:
+                    keyboard.append([InlineKeyboardButton(text, callback_data=f"gift_budget_{data}")])
+                
+                keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="gift_personalized_menu")])
+                
+                await update.callback_query.edit_message_text(
+                    "💰 <b>Укажи примерный бюджет:</b>\n\n"
+                    "Это поможет подобрать подарок в нужной ценовой категории.",
+                    parse_mode='HTML',
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
 
-        async def generate_with_saved_params(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            await update.callback_query.answer()
-            
-            user_data = context.user_data.get("gift_params", {})
-            recipient = user_data.get("recipient", "любой")
-            occasion = user_data.get("occasion", "любой")
-            budget = user_data.get("budget", 0)
-            
-            if budget == 0:
-                budget = None
-            else:
-                budget = int(budget)
-            
-            idea = generate_personalized_gift_idea(
-                recipient_type=recipient,
-                occasion=occasion,
-                max_price=budget
-            )
-            
-            # Сообщение с текущими параметрами
-            params_text = f"👤 <b>Получатель:</b> {recipient}\n"
-            params_text += f"🎉 <b>Повод:</b> {occasion}\n"
-            if budget:
-                params_text += f"💰 <b>Бюджет:</b> до {budget}₽\n"
-            
-            keyboard = [
-                [InlineKeyboardButton("🔄 Ещё идею с этими параметрами", callback_data="gift_generate_personalized")],
-                [InlineKeyboardButton("⚙️ Изменить параметры", callback_data="gift_personalized_menu")],
-                [InlineKeyboardButton("⬅️ В меню идей", callback_data="gift_ideas_menu")]
-            ]
-            
-            await update.callback_query.edit_message_text(
-                f"🎁 <b>Персонализированная идея</b>\n\n"
-                f"{params_text}\n"
-                f"{'-'*40}\n"
-                f"{idea}",
-                parse_mode='HTML',
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
-            await q.edit_message_text(
-                f"{combo}\n\n"
-                f"💡 <b>Совет:</b> Можно заменить любой элемент в наборе на аналогичный!",
-                parse_mode='HTML',
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🎨 Другой набор", callback_data="gift_combinations")],
-                    [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
-                    [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
-                ])
-            )
+            async def generate_with_saved_params(update: Update, context: ContextTypes.DEFAULT_TYPE):
+                await update.callback_query.answer()
+                
+                user_data = context.user_data.get("gift_params", {})
+                recipient = user_data.get("recipient", "любой")
+                occasion = user_data.get("occasion", "любой")
+                budget = user_data.get("budget", 0)
+                
+                if budget == 0:
+                    budget = None
+                else:
+                    budget = int(budget)
+                
+                idea = generate_personalized_gift_idea(
+                    recipient_type=recipient,
+                    occasion=occasion,
+                    max_price=budget
+                )
+                
+                # Сообщение с текущими параметрами
+                params_text = f"👤 <b>Получатель:</b> {recipient}\n"
+                params_text += f"🎉 <b>Повод:</b> {occasion}\n"
+                if budget:
+                    params_text += f"💰 <b>Бюджет:</b> до {budget}₽\n"
+                
+                keyboard = [
+                    [InlineKeyboardButton("🔄 Ещё идею с этими параметрами", callback_data="gift_generate_personalized")],
+                    [InlineKeyboardButton("⚙️ Изменить параметры", callback_data="gift_personalized_menu")],
+                    [InlineKeyboardButton("⬅️ В меню идей", callback_data="gift_ideas_menu")]
+                ]
+                
+                await update.callback_query.edit_message_text(
+                    f"🎁 <b>Персонализированная идея</b>\n\n"
+                    f"{params_text}\n"
+                    f"{'-'*40}\n"
+                    f"{idea}",
+                    parse_mode='HTML',
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+                await q.edit_message_text(
+                    f"{combo}\n\n"
+                    f"💡 <b>Совет:</b> Можно заменить любой элемент в наборе на аналогичный!",
+                    parse_mode='HTML',
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🎨 Другой набор", callback_data="gift_combinations")],
+                        [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
+                        [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+                    ])
+                )
             
         elif q.data == "toast":
             await q.edit_message_text(
