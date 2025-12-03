@@ -1709,6 +1709,26 @@ async def epic_grinch_battle(update: Update, context: ContextTypes.DEFAULT_TYPE)
         }
     }
     
+    grinch_stats = {
+        "type": grinch_type,
+        "name": grinch_data["name"],
+        "hp": grinch_data["hp"],
+        "max_hp": grinch_data["hp"],
+        "attack": grinch_data["attack"],
+        "defense": random.randint(12, 22),
+        "special_used": False,
+        "rage_mode": False,
+        "phase": 1,
+        "traits": grinch_data["trait"],
+        "statuses": {},  # ДОБАВИТЬ ЭТУ СТРОКУ
+        "abilities": {
+            "steal": grinch_type == "thief",
+            "magic": grinch_type == "mage",
+            "heal": random.random() > 0.7,
+            "summon": random.random() > 0.8
+        }
+    }
+    
     # 5 типов Гринча (случайный выбор)
     grinch_types = {
         "thief": {"name": "🎁 Вор подарков", "hp": 100, "attack": 25, "trait": "Может украсть предмет"},
@@ -1983,7 +2003,16 @@ async def battle_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
             player["hp"] = player["max_hp"]
             player["mana"] = player["max_mana"]
             battle_log.append("🍪 Волшебное печенье восстановило всё здоровье и ману!")
-    
+            
+    elif action == "random":
+        # Случайное действие от игрока
+        random_actions = ["attack_normal", "attack_strong", "defend", "item_potion"]
+        action = random.choice(random_actions)
+        # Рекурсивно вызвать обработку выбранного действия
+        q.data = f"battle_{action}"
+        await battle_action_handler(update, context)
+        return
+        
     elif action == "christmas_magic":
         if player["mana"] >= 35:
             player["mana"] -= 35
@@ -2301,6 +2330,24 @@ def calculate_damage(player, grinch, attack_type):
     
     return damage
 
+async def grinch_turn(update: Update, context: ContextTypes.DEFAULT_TYPE, battle_log, unexpected_events):
+    """Ход Гринча"""
+    battle_state = context.user_data["battle_state"]
+    player = battle_state["player"]
+    grinch = battle_state["grinch"]
+    
+    # Простой ход Гринча - базовая атака
+    damage = max(5, grinch["attack"] - player["defense"] // 3)
+    player["hp"] -= damage
+    
+    attack_messages = [
+        f"🎄 Гринч атаковал своей сумкой с подарками! -{damage} HP",
+        f"🎁 Гринч бросил в тебя украденную игрушку! -{damage} HP",
+        f"🦌 Гринч позвал своих зомби-оленей! -{damage} HP"
+    ]
+    
+    battle_log.append(random.choice(attack_messages))
+    
 # Новая функция: показ результата битвы
 async def show_battle_result(update, context, message):
     keyboard = [
@@ -3732,6 +3779,9 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
                 "🎄 Возвращаемся в главное меню...",
                 reply_markup=enhanced_menu_keyboard(admin)
             )
+            
+        elif q.data == "battle_random_type":
+            await epic_grinch_battle(update, context)   
             
         elif q.data == "battle_random_type":
             # Запускаем битву со случайным типом Гринча
