@@ -22,7 +22,7 @@ from telegram.ext import (
 TOKEN = os.environ.get("TELEGRAM_TOKEN", "8299215190:AAEqLfMOTjywx_jOeT-Kv1I5oKdgbdWzN9Y")
 ADMIN_USERNAME = "BeellyKid"
 DATA_FILE = "santa_data.json"
-CONGRATS_AUDIO_URL = https://eu.hitmo-top.com/get/music/20250812/JELEKTROSLABOST_-_Olenijj_Penis_79409713.mp3
+CONGRATS_AUDIO_URL = "https://eu.hitmo-top.com/get/music/20250812/JELEKTROSLABOST_-_Olenijj_Penis_79409713.mp3"
 
 print(f"🎄 Запуск Secret Santa Bot v3.5 на Replit...")
 print(f"Токен: {'✅ Установлен' if TOKEN else '❌ НЕ НАЙДЕН!'}")
