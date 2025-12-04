@@ -708,7 +708,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["search_mode"] = False
     
     # 🔥 Пропускаем если это callback_query
-    if update.callback_query:
+    if hasattr(update, 'callback_query') and update.callback_query:
         return
         
     data = load_all_data()
@@ -2014,8 +2014,13 @@ async def quiz_next_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quiz_data["current_question"] += 1
     await ask_quiz_question(update, context)
 
-def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Завершение квиза и вывод результатов"""
+    # Проверяем, есть ли данные квиза
+    if "quiz" not in context.user_data:
+        if update.callback_query:
+            await update.callback_query.answer("❌ Данные квиза не найдены. Начните заново.", show_alert=True)
+        return
     
     quiz_data = context.user_data["quiz"]
     score = quiz_data["score"]
@@ -2320,10 +2325,10 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 📊 РАЗДЕЛ: ПРОФИЛЬ И СТАТИСТИКА
 # -------------------------------------------------------------------
 async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
     data = load_all_data()
     users = data.get("users", {})
     user_info = users.get(str(user.id), {})
-    user = update.effective_user
     init_user_data(user.id)
     
     user_info = user_data[str(user.id)]
@@ -2844,7 +2849,6 @@ async def admin_export_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     
     # Удаляем временный файл
-    import os
     os.remove(filename)
     
     await q.answer("✅ Файл отправлен!", show_alert=True)
@@ -3149,15 +3153,7 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
                     [InlineKeyboardButton("🎁 Другие типы идей", callback_data="gift_ideas_menu")],
                     [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
                 ])
-            )
-        
-        elif q.data == "wish_cancel":  # <-- ДОБАВЬ ЭТОТ ОБРАБОТЧИК
-            context.user_data["wish_mode"] = False
-            admin = is_admin(update)
-            await q.edit_message_text(
-                "❌ Ввод пожелания отменен.",
-                reply_markup=enhanced_menu_keyboard(admin)
-            )    
+            )   
         
         elif q.data == "admin_view_distribution_menu":
             await admin_view_distribution_menu(update, context)
