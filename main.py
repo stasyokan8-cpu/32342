@@ -1823,7 +1823,7 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     correct_answers = sum(1 for answer in quiz_data["answers"] if answer["is_correct"])
     total_questions = len(quiz_data["questions"])
     
-    # Обновляем статистику
+    # Обновляем статистику в глобальной переменной
     user_data[str(user.id)]["quiz_points"] = user_data[str(user.id)].get("quiz_points", 0) + score
     user_data[str(user.id)]["total_quiz_correct"] = user_data[str(user.id)].get("total_quiz_correct", 0) + correct_answers
     user_data[str(user.id)]["total_quiz_played"] = user_data[str(user.id)].get("total_quiz_played", 0) + 1
@@ -1843,7 +1843,10 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if answer.get("question_id") not in user_data[str(user.id)]["answered_quiz_questions"]:
             user_data[str(user.id)]["answered_quiz_questions"].append(answer["question_id"])
     
-    save_data({"users": user_data, "rooms": load_data().get("rooms", {})})
+    # 🔥 ВАЖНО: Сохраняем и обновляем глобальные данные
+    data = load_data()
+    data["users"] = user_data  # Обновляем пользователей в данных
+    save_data(data)
     
     final_text = f"""
 🎓 <b>Новогодний Квиз завершён!</b>
@@ -1873,10 +1876,14 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
+        # 🔥 ВАЖНО: Загружаем АКТУАЛЬНЫЕ данные из файла
+    data = load_data()
+    users_data = data.get("users", {})  # Используем users из загруженных данных
+    
     # Собираем статистику всех игроков
     player_stats = []
     
-    for user_id_str, user_info in user_data.items():
+    for user_id_str, user_info in users_data.items():
         quiz_points = user_info.get("quiz_points", 0)
         quiz_wins = user_info.get("quiz_wins", 0)
         total_correct = user_info.get("total_quiz_correct", 0)
