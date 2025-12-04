@@ -1622,8 +1622,26 @@ async def start_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     init_user_data(user.id)
     
-    # Выбираем 5 случайных вопросов
-    questions = random.sample(NEW_YEAR_QUIZ, min(5, len(NEW_YEAR_QUIZ)))
+    # Получаем вопросы, на которые пользователь еще не отвечал
+    answered_ids = set(user_data[str(user.id)].get("answered_quiz_questions", []))
+    available_questions = [q for q in NEW_YEAR_QUIZ if q["id"] not in answered_ids]
+    
+    # Проверяем, есть ли доступные вопросы
+    if not available_questions:
+        await update.callback_query.edit_message_text(
+            "🎓 <b>Поздравляем! 🎉</b>\n\n"
+            "Ты ответил на все вопросы новогоднего квиза!\n\n"
+            "Новые вопросы появятся в следующем обновлении бота. 🎄",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📊 Топ игроков", callback_data="quiz_top")],
+                [InlineKeyboardButton("⬅️ Назад в игры", callback_data="mini_games")]
+            ])
+        )
+        return
+    
+    # Выбираем 5 случайных вопросов из доступных
+    questions = random.sample(available_questions, min(5, len(available_questions)))
     
     context.user_data["quiz"] = {
         "score": 0,
@@ -1671,7 +1689,8 @@ async def quiz_answer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         "question": question_data["question"],
         "user_answer": user_answer,
         "correct_answer": question_data["correct"],
-        "is_correct": is_correct
+        "is_correct": is_correct,
+        "question_id": question_data["id"]
     })
     
     if is_correct:
@@ -1725,9 +1744,9 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result_message = "📚 <b>Неплохо! Новогодние традиции — это интересно!</b>"
     
     # Сохраняем отвеченные вопросы
-    for question in quiz_data["questions"]:
-        if question["id"] not in user_data[str(user.id)]["answered_quiz_questions"]:
-            user_data[str(user.id)]["answered_quiz_questions"].append(question["id"])
+    for answer in quiz_data["answers"]:
+        if answer.get("question_id") not in user_data[str(user.id)]["answered_quiz_questions"]:
+            user_data[str(user.id)]["answered_quiz_questions"].append(answer["question_id"])
     
     save_data({"users": user_data, "rooms": load_data().get("rooms", {})})
     
