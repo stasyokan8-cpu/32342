@@ -113,11 +113,52 @@ def add_achievement(user_id, achievement_key):
     data["users"] = user_data
     save_data(data)
 
+def is_user_in_room(user_id):
+    """Проверяет, находится ли пользователь в какой-либо комнате"""
+    data = load_data()
+    for code, room in data["rooms"].items():
+        if str(user_id) in room["members"]:
+            return True
+    return False
+
+async def restricted_access_check(update: Update, context: ContextTypes.DEFAULT_TYPE, function_name=""):
+    """Проверяет доступ к функциям"""
+    user = update.effective_user
+    
+    # Функции, доступные без комнаты
+    allowed_without_room = [
+        "start", "join_room_menu", "join_room", "room_help", 
+        "back_menu", "admin_*"  # Админские функции
+    ]
+    
+    # Если функция в списке разрешенных или пользователь админ
+    if any(fn in function_name for fn in allowed_without_room) or is_admin(update):
+        return True
+    
+    # Проверяем, находится ли пользователь в комнате
+    if not is_user_in_room(user.id):
+        if update.callback_query:
+            await update.callback_query.answer(
+                "❌ Для использования этой функции нужно присоединиться к комнате!\n"
+                "Используйте кнопку 'Присоединиться к комнате' в меню.",
+                show_alert=True
+            )
+        else:
+            await update.message.reply_text(
+                "❌ Для использования этой функции нужно присоединиться к комнате!\n"
+                "Используйте кнопку 'Присоединиться к комнате' в меню."
+            )
+        return False
+    return True
 # -------------------------------------------------------------------
 # 🎁 РАСШИРЕННЫЙ ГЕНЕРАТОР ИДЕЙ ПОДАРКОВ
 # -------------------------------------------------------------------
 
 async def gift_ideas_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    
+    if not await restricted_access_check(update, context, "gift_ideas_menu"):
+        return
+    
     await update.callback_query.answer()
     
     menu_text = """
@@ -510,6 +551,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def wish_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    
+    if not await restricted_access_check(update, context, "wish_start"):
+        return
+    
     await update.callback_query.answer()
     context.user_data["wish_mode"] = True
     
@@ -904,6 +949,10 @@ async def show_specific_room_members(update: Update, context: ContextTypes.DEFAU
 # 🎮 РАЗДЕЛ: МИНИ-ИГРЫ (только квиз и битва с Гринчем)
 # -------------------------------------------------------------------
 async def mini_game_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    
+    if not await restricted_access_check(update, context, "mini_game_menu"):
+        return
+    
     await update.callback_query.answer()
     
     user = update.effective_user
@@ -1950,22 +1999,35 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
-    # Загружаем данные из файла
-    file_data = load_data_without_global()
-    users_data = file_data.get("users", {})
+    # ВАЖНО: используем load_data() для обновления глобальной переменной
+    load_data()  # Эта функция обновляет глобальную user_data
+    
+    if not user_data:
+        await update.callback_query.edit_message_text(
+            "🏆 <b>ТОП ИГРОКОВ КВИЗА</b>\n\n"
+            "Пока никто не играл в квиз. Будь первым! 🎄",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🎮 Играть в квиз", callback_data="game_quiz")],
+                [InlineKeyboardButton("⬅️ Назад в игры", callback_data="mini_games")]
+            ])
+        )
+        return
     
     # Собираем статистику всех игроков
     player_stats = []
     
-    for user_id_str, user_info in users_data.items():
+    for user_id_str, user_info in user_data.items():
         quiz_points = user_info.get("quiz_points", 0)
         quiz_wins = user_info.get("quiz_wins", 0)
         total_correct = user_info.get("total_quiz_correct", 0)
         total_played = user_info.get("total_quiz_played", 0)
         
-        if total_played > 0:
+        # Включаем в топ всех, кто играл
+        if total_played > 0 or quiz_points > 0:
             accuracy = (total_correct / (total_played * 5)) * 100 if total_played > 0 else 0
             player_stats.append({
+                "id": user_id_str,
                 "name": user_info.get("name", "Неизвестный"),
                 "username": user_info.get("username", ""),
                 "points": quiz_points,
@@ -1974,16 +2036,16 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "played": total_played
             })
     
-    # Сортируем по очкам
+    # Сортируем по очкам (по убыванию)
     player_stats.sort(key=lambda x: x["points"], reverse=True)
     
     top_text = "🏆 <b>ТОП ИГРОКОВ КВИЗА</b>\n\n"
     
     if not player_stats:
-        top_text += "Пока никто не играл в квиз. Будь первым! 🎄\n\n"
+        top_text += "Пока никто не играл в квиз. Будь першим! 🎄\n\n"
     else:
         medals = ["🥇", "🥈", "🥉"]
-        for i, player in enumerate(player_stats[:10]):
+        for i, player in enumerate(player_stats[:20]):  # Показываем до 20 игроков
             if i < 3:
                 medal = medals[i]
             else:
@@ -1999,7 +2061,8 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
     top_text += f"• Всего игроков: {len(player_stats)}\n"
     top_text += f"• Всего сыграно квизов: {sum(p['played'] for p in player_stats)}\n"
     if player_stats:
-        top_text += f"• Средняя точность: {sum(p['accuracy'] for p in player_stats) / len(player_stats):.1f}%"
+        avg_accuracy = sum(p['accuracy'] for p in player_stats) / len(player_stats)
+        top_text += f"• Средняя точность: {avg_accuracy:.1f}%"
     else:
         top_text += "• Средняя точность: 0%"
     
