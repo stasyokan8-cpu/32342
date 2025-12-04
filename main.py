@@ -1684,6 +1684,18 @@ async def epic_grinch_battle(update: Update, context: ContextTypes.DEFAULT_TYPE)
     init_user_data(user.id)
     user_data[str(user.id)]["grinch_fights"] += 1
     
+    # 5 типов Гринча (случайный выбор)
+    grinch_types = {
+        "thief": {"name": "🎁 Вор подарков", "hp": 100, "attack": 25, "trait": "Может украсть предмет"},
+        "berserk": {"name": "😠 Берсерк-Гринч", "hp": 140, "attack": 35, "trait": "Сильнее при низком HP"},
+        "mage": {"name": "🧙 Маг-Гринч", "hp": 90, "attack": 28, "trait": "Использует магию"},
+        "tank": {"name": "🛡️ Танк-Гринч", "hp": 180, "attack": 18, "trait": "Высокая защита"},
+        "trickster": {"name": "🃏 Гринч-Трикстер", "hp": 110, "attack": 22, "trait": "Наводит помехи"}
+    }
+    
+    grinch_type = random.choice(list(grinch_types.keys()))  # ДОБАВИТЬ ЭТУ СТРОКУ
+    grinch_data = grinch_types[grinch_type]  # ДОБАВИТЬ ЭТУ СТРОКУ
+    
     # Расширенная система характеристик игрока
     player_stats = {
         "hp": 120,
@@ -1729,17 +1741,6 @@ async def epic_grinch_battle(update: Update, context: ContextTypes.DEFAULT_TYPE)
         }
     }
     
-    # 5 типов Гринча (случайный выбор)
-    grinch_types = {
-        "thief": {"name": "🎁 Вор подарков", "hp": 100, "attack": 25, "trait": "Может украсть предмет"},
-        "berserk": {"name": "😠 Берсерк-Гринч", "hp": 140, "attack": 35, "trait": "Сильнее при низком HP"},
-        "mage": {"name": "🧙 Маг-Гринч", "hp": 90, "attack": 28, "trait": "Использует магию"},
-        "tank": {"name": "🛡️ Танк-Гринч", "hp": 180, "attack": 18, "trait": "Высокая защита"},
-        "trickster": {"name": "🃏 Гринч-Трикстер", "hp": 110, "attack": 22, "trait": "Наводит помехи"}
-    }
-    
-    grinch_type = random.choice(list(grinch_types.keys()))
-    grinch_data = grinch_types[grinch_type]
     
     # Статистика Гринча
     grinch_stats = {
@@ -2330,37 +2331,6 @@ def calculate_damage(player, grinch, attack_type):
     
     return damage
 
-async def grinch_turn(update: Update, context: ContextTypes.DEFAULT_TYPE, battle_log, unexpected_events):
-    """Ход Гринча"""
-    battle_state = context.user_data["battle_state"]
-    player = battle_state["player"]
-    grinch = battle_state["grinch"]
-    
-    # Простой ход Гринча - базовая атака
-    damage = max(5, grinch["attack"] - player["defense"] // 3)
-    player["hp"] -= damage
-    
-    attack_messages = [
-        f"🎄 Гринч атаковал своей сумкой с подарками! -{damage} HP",
-        f"🎁 Гринч бросил в тебя украденную игрушку! -{damage} HP",
-        f"🦌 Гринч позвал своих зомби-оленей! -{damage} HP"
-    ]
-    
-    battle_log.append(random.choice(attack_messages))
-    
-# Новая функция: показ результата битвы
-async def show_battle_result(update, context, message):
-    keyboard = [
-        [InlineKeyboardButton("🎮 Сразиться снова", callback_data="game_grinch")],
-        [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
-    ]
-    
-    await update.callback_query.edit_message_text(
-        message,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
 async def battle_victory(update: Update, context: ContextTypes.DEFAULT_TYPE, battle_log):
     user = update.effective_user
     user_data[str(user.id)]["grinch_wins"] += 1
@@ -2409,30 +2379,30 @@ async def battle_victory(update: Update, context: ContextTypes.DEFAULT_TYPE, bat
     ]
     
     victory_text = f"""
-{random.choice(victory_messages)}
+    {random.choice(victory_messages)}
 
-✨ <b>Награды:</b>
-• +{total_points} очков Санты
-• +{total_exp} опыта оленёнку
-• Получен предмет: {bonus['item']}
-• Бонус за скорость: +{speed_bonus}
-• Бонус за комбо: +{combo_bonus}
+    ✨ <b>Награды:</b>
+    • +{total_points} очков Санты
+    • +{total_exp} опыта оленёнку
+    • Получен предмет: {bonus['item']}
+    • Бонус за скорость: +{speed_bonus}
+    • Бонус за комбо: +{combo_bonus}
 
-📊 <b>Статистика битвы:</b>
-• Пройдено раундов: {round_count}
-• Максимальное комбо: {combo}
-• Оставшееся HP: {context.user_data['battle_state']['player']['hp']}
-• Использовано предметов: {3 - sum(context.user_data['battle_state']['player']['items'].values())}
+    📊 <b>Статистика битвы:</b>
+    • Пройдено раундов: {round_count}
+    • Максимальное комбо: {combo}
+    • Оставшееся HP: {context.user_data['battle_state']['player']['hp']}
+    • Использовано предметов: {3 - sum(context.user_data['battle_state']['player']['items'].values())}
 
-🎮 <b>Достижения:</b>
-{'✅ Защитник Рождества' if user_data[str(user.id)]["grinch_wins"] >= 3 else '◻️'}
-{'✅ Истребитель Гринчей' if user_data[str(user.id)]["grinch_wins"] >= 10 else '◻️'}
-{'✅ Скоростной боец' if round_count <= 5 else '◻️'}
-{'✅ Мастер комбо' if combo >= 5 else '◻️'}
+    🎮 <b>Достижения:</b>
+    {'✅ Защитник Рождества' if user_data[str(user.id)]["grinch_wins"] >= 3 else '◻️'}
+    {'✅ Истребитель Гринчей' if user_data[str(user.id)]["grinch_wins"] >= 10 else '◻️'}
+    {'✅ Скоростной боец' if round_count <= 5 else '◻️'}
+    {'✅ Мастер комбо' if combo >= 5 else '◻️'}
 
-Гринч повержен, и Новый Год спасён! 🎄
-"""
-    
+    Гринч повержен, и Новый Год спасён! 🎄
+    """
+        
     # Добавляем редкий предмет в инвентарь
     if bonus["item"] not in user_data[str(user.id)]["rare_items"]:
         user_data[str(user.id)]["rare_items"].append(bonus["item"])
