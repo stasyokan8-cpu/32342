@@ -2105,6 +2105,42 @@ async def send_333_congrats_audio(update: Update, context: ContextTypes.DEFAULT_
                 performer="Secret Santa Bot",
                 parse_mode='HTML'
             )
+        
+        # Способ 2: Отправка локального файла (для Replit)
+        else:
+            try:
+                with open(CONGRATS_AUDIO_URL, 'rb') as audio_file:
+                    await context.bot.send_audio(
+                        chat_id=user_id,
+                        audio=audio_file,
+                        caption="🎶 Твоя награда за 333 балла в квизе! Поздравляем! 🏆",
+                        title="Музыкальная награда за 333 балла",
+                        performer="Secret Santa Bot",
+                        parse_mode='HTML'
+                    )
+            except FileNotFoundError:
+                # Если файл не найден, отправляем поздравление без музыки
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text="🎉 <b>Особое достижение!</b>\n\n"
+                         "Ты достиг 333 баллов в квизе!\n"
+                         "К сожалению, музыкальная награда временно недоступна, "
+                         "но твоё достижение записано! 🏆",
+                    parse_mode='HTML'
+                )
+        
+        print(f"✅ Музыкальная награда отправлена пользователю {user_id}")
+        
+    except Exception as e:
+        print(f"❌ Ошибка отправки музыкальной награды: {e}")
+        # В случае ошибки отправляем текстовое поздравление
+        await context.bot.send_message(
+            chat_id=user_id,
+            text="🎉 <b>Особое достижение!</b>\n\n"
+                 "Ты достиг 333 баллов в квизе!\n"
+                 "Это невероятный результат! Ты настоящий новогодний эксперт! 🏆",
+            parse_mode='HTML'
+        )
 
 async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
