@@ -33,9 +33,45 @@ if not TOKEN:
     print("💡 Установите переменную окружения TELEGRAM_TOKEN в Replit Secrets")
     sys.exit(1)
 
+# Единая функция загрузки данных
+def load_all_data():
+    """Загружает все данные из файла и обновляет глобальную переменную user_data"""
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if "users" not in data:
+                data["users"] = {}
+            global user_data
+            user_data = data["users"]
+            return data
+    except FileNotFoundError:
+        default_data = {"rooms": {}, "users": {}}
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(default_data, f, indent=4, ensure_ascii=False)
+        global user_data
+        user_data = {}
+        return default_data
+    except Exception as e:
+        print(f"Ошибка загрузки данных: {e}")
+        global user_data
+        user_data = {}
+        return {"rooms": {}, "users": {}}
+
+# Обновите функцию save_data
+def save_all_data(data):
+    """Сохраняет все данные в файл"""
+    data["users"] = user_data
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"Ошибка сохранения данных: {e}")
+        return False
+
 user_data = {}
 
-def load_data():
+def load_all_data():
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -53,7 +89,7 @@ def load_data():
         print(f"Ошибка загрузки данных: {e}")
         return {"rooms": {}, "users": {}}
 
-def save_data(data):
+def save_all_data(data)
     data["users"] = user_data
     try:
         with open(DATA_FILE, "w", encoding="utf-8") as f:
@@ -61,7 +97,7 @@ def save_data(data):
     except Exception as e:
         print(f"Ошибка сохранения данных: {e}")
 
-def load_data_without_global():
+def load_all_data():
     """Загружает данные из файла без изменения глобальной переменной user_data"""
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
@@ -92,6 +128,45 @@ def back_to_menu_keyboard(admin=False):
 # СИСТЕМА ДАННЫХ ПОЛЬЗОВАТЕЛЯ (без очков)
 # -------------------------------------------------------------------
 def init_user_data(user_id):
+    user_id_str = str(user_id)
+    
+    # Загружаем актуальные данные из файла
+    data = load_all_data()
+    
+    if user_id_str not in user_data:
+        # Проверяем, есть ли пользователь в файле
+        if user_id_str in data.get("users", {}):
+            # Копируем данные из файла
+            user_data[user_id_str] = data["users"][user_id_str].copy()
+        else:
+            # Создаем нового пользователя
+            user_data[user_id_str] = {
+                "achievements": [],
+                "games_won": 0,
+                "grinch_fights": 0,
+                "grinch_wins": 0,
+                "quiz_points": 0,
+                "quiz_wins": 0,
+                "name": "",
+                "username": "",
+                "answered_quiz_questions": [],
+                "total_quiz_correct": 0,
+                "total_quiz_played": 0,
+                "congratulated_333": False
+            }
+    
+    # Убедимся, что все необходимые поля существуют
+    required_fields = [
+        "achievements", "games_won", "grinch_fights", "grinch_wins",
+        "quiz_points", "quiz_wins", "name", "username",
+        "answered_quiz_questions", "total_quiz_correct", 
+        "total_quiz_played", "congratulated_333"
+    ]
+    
+    for field in required_fields:
+        if field not in user_data[user_id_str]:
+            user_data[user_id_str][field] = [] if field == "achievements" or field == "answered_quiz_questions" else 0 if "int" in str(type(0)) else ""
+    
     if str(user_id) not in user_data:
         user_data[str(user_id)] = {
             "achievements": [],
@@ -113,13 +188,13 @@ def add_achievement(user_id, achievement_key):
     if achievement_key not in user_data[str(user.id)]["achievements"]:
         user_data[str(user.id)]["achievements"].append(achievement_key)
     
-    data = load_data()
+    data = load_all_data()
     data["users"] = user_data
-    save_data(data)
+    save_all_data(data)
 
 def is_user_in_room(user_id):
     """Проверяет, находится ли пользователь в какой-либо комнате"""
-    data = load_data()
+    data = load_all_data()
     for code, room in data["rooms"].items():
         if str(user_id) in room["members"]:
             return True
@@ -526,6 +601,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin = is_admin(update)
     init_user_data(user.id)
     
+    data = load_all_data()
+    
     user_data[str(user.id)]["name"] = user.full_name
     user_data[str(user.id)]["username"] = user.username or "без username"
     
@@ -570,7 +647,7 @@ async def wish_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
     # 🔥 Проверяем, находится ли пользователь в комнате
-    data = load_data()
+    data = load_all_data()
     user = update.effective_user
     user_in_room = False
     
@@ -679,7 +756,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
         return
         
-    data = load_data()
+    data = load_all_data()
     user = update.effective_user
     admin = is_admin(update)
     
@@ -698,7 +775,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     return
                 
                 room["members"][str(user.id)]["wish"] = update.message.text
-                save_data(data)
+                save_all_data(data)
                 context.user_data["wish_mode"] = False
                 
                 await update.message.reply_text(
@@ -751,7 +828,7 @@ async def create_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("🚫 Только @BeellyKid может создавать комнаты.")
             return
 
-    data = load_data()
+    data = load_all_data()
     code = gen_room_code()
     data["rooms"][code] = {
         "creator": update.effective_user.id,
@@ -761,7 +838,7 @@ async def create_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "deadline": (datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
         "created_at": datetime.now(timezone.utc).isoformat()
     }
-    save_data(data)
+    save_all_data(data)
 
     admin = is_admin(update)
     
@@ -872,7 +949,7 @@ async def join_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
         
-    data = load_data()
+    data = load_all_data()
     user = update.effective_user
     
     # Получаем код из сообщения
@@ -912,7 +989,7 @@ async def join_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "wish": "",
         "joined_at": datetime.now(timezone.utc).isoformat()
     }
-    save_data(data)
+    save_all_data(data)
 
     admin = is_admin(update)
     await update.message.reply_text(
@@ -929,7 +1006,7 @@ async def join_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def show_room_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data = load_data()
+    data = load_all_data()
     user = update.effective_user
     
     # Для админа показываем выбор комнаты
@@ -954,7 +1031,7 @@ async def show_room_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await show_specific_room_members(update, context, room_code, user_room)
 
 async def admin_select_room_for_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data = load_data()
+    data = load_all_data()
     
     if not data["rooms"]:
         await update.callback_query.edit_message_text(
@@ -987,7 +1064,7 @@ async def show_specific_room_members(update: Update, context: ContextTypes.DEFAU
     if not code:
         return
         
-    data = load_data()
+    data = load_all_data()
     if not room:
         room = data["rooms"].get(code)
     
@@ -2007,7 +2084,7 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     congratulated_333 = user_data[str(user.id)].get("congratulated_333", False)
     just_reached_333 = False
     
-    if not congratulated_333 and new_quiz_points >= 20 and old_quiz_points < 20:
+    if not congratulated_333 and new_quiz_points >= 333 and old_quiz_points < 333:
         just_reached_333 = True
         user_data[str(user.id)]["congratulated_333"] = True
         
@@ -2029,7 +2106,7 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # 🔥 ВАЖНО: Сохраняем данные правильно
     # Загружаем текущие данные из файла
-    file_data = load_data_without_global()
+    file_data = load_all_data()
     
     # Обновляем только данные текущего пользователя
     file_data["users"][str(user.id)] = user_data[str(user.id)]
@@ -2042,6 +2119,10 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         print(f"❌ Ошибка сохранения данных: {e}")
     
+    data = load_all_data()
+    save_all_data(data)
+    print(f"✅ Данные квиза сохранены для пользователя {user.id}")
+
     # 🔥 ПОДГОТОВКА ПОЗДРАВЛЕНИЯ С 333 БАЛЛАМИ
     congrats_text = ""
     if just_reached_333:
@@ -2049,7 +2130,7 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🎺 <b>🎶 МУЗЫКАЛЬНАЯ НАГРАДА! 🎶</b>
 
 🏆 <b>ТЫ ДОСТИГ 333 БАЛЛОВ В КВИЗЕ!</b>
-
+💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥
 Это особое достижение! Ты настоящий эксперт по новогодним традициям!
 Тебе открывается секретная музыкальная награда...
 """
@@ -2157,8 +2238,8 @@ async def send_333_congrats_audio(update: Update, context: ContextTypes.DEFAULT_
 async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
-    # 🔥 ЗАГРУЖАЕМ АКТУАЛЬНЫЕ ДАННЫЕ ИЗ ФАЙЛА
-    data = load_data_without_global()
+    # Загружаем актуальные данные
+    data = load_all_data()
     users = data.get("users", {})
     
     if not users:
@@ -2173,18 +2254,25 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    # Собираем статистику всех игроков
+    # Собираем статистику всех игроков, которые играли в квиз
     player_stats = []
     
     for user_id_str, user_info in users.items():
-        quiz_points = user_info.get("quiz_points", 0)
-        quiz_wins = user_info.get("quiz_wins", 0)
-        total_correct = user_info.get("total_quiz_correct", 0)
+        # Проверяем, играл ли пользователь в квиз
         total_played = user_info.get("total_quiz_played", 0)
+        quiz_points = user_info.get("quiz_points", 0)
         
-        # Включаем в топ только тех, кто играл в квиз
-        if total_played > 0:
-            accuracy = (total_correct / (total_played * 5)) * 100 if total_played > 0 else 0
+        # Включаем в топ только тех, кто набрал хоть какие-то очки
+        if total_played > 0 or quiz_points > 0:
+            quiz_wins = user_info.get("quiz_wins", 0)
+            total_correct = user_info.get("total_quiz_correct", 0)
+            total_played = user_info.get("total_quiz_played", 0)
+            
+            # Вычисляем точность
+            accuracy = 0
+            if total_played > 0:
+                accuracy = (total_correct / (total_played * 5)) * 100
+            
             player_stats.append({
                 "id": user_id_str,
                 "name": user_info.get("name", "Неизвестный"),
@@ -2192,11 +2280,12 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "points": quiz_points,
                 "wins": quiz_wins,
                 "accuracy": accuracy,
-                "played": total_played
+                "played": total_played,
+                "correct": total_correct
             })
     
-    # Сортируем по очкам (по убыванию)
-    player_stats.sort(key=lambda x: x["points"], reverse=True)
+    # Сортируем по очкам (по убыванию), затем по победам
+    player_stats.sort(key=lambda x: (x["points"], x["wins"]), reverse=True)
     
     top_text = "🏆 <b>ТОП ИГРОКОВ КВИЗА</b>\n\n"
     
@@ -2216,9 +2305,12 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
             top_text += f"{medal} <b>{display_name}</b> {username_display}\n"
             top_text += f"   📊 Очки: {player['points']} | 🏆 Побед: {player['wins']} | 🎯 Точность: {player['accuracy']:.1f}%\n\n"
     
+    # Общая статистика
     top_text += "🎮 <b>ОБЩАЯ СТАТИСТИКА:</b>\n"
     top_text += f"• Всего игроков в квизе: {len(player_stats)}\n"
     top_text += f"• Всего сыграно квизов: {sum(p['played'] for p in player_stats)}\n"
+    top_text += f"• Всего правильных ответов: {sum(p['correct'] for p in player_stats)}\n"
+    
     if player_stats:
         avg_accuracy = sum(p['accuracy'] for p in player_stats) / len(player_stats)
         top_text += f"• Средняя точность: {avg_accuracy:.1f}%"
@@ -2237,6 +2329,9 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 📊 РАЗДЕЛ: ПРОФИЛЬ И СТАТИСТИКА
 # -------------------------------------------------------------------
 async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    data = load_all_data()
+    users = data.get("users", {})
+    user_info = users.get(str(user.id), {})
     user = update.effective_user
     init_user_data(user.id)
     
@@ -2279,7 +2374,7 @@ async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 """
     
     # Находим комнату пользователя
-    data = load_data()
+    data = load_all_data()
     for code, room in data["rooms"].items():
         if str(user.id) in room["members"]:
             profile_text += f"\n🏠 <b>Текущая комната:</b> {code}"
@@ -2305,7 +2400,7 @@ async def start_game_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.answer("🚫 Доступ запрещён.", show_alert=True)
         return
 
-    data = load_data()
+    data = load_all_data()
     
     if not data["rooms"]:
         await update.callback_query.edit_message_text(
@@ -2340,7 +2435,7 @@ async def start_specific_game(update: Update, context: ContextTypes.DEFAULT_TYPE
     await q.answer()
     
     code = q.data.replace("start_", "")
-    data = load_data()
+    data = load_all_data()
     
     if code not in data["rooms"]:
         await q.edit_message_text("🚫 Комната не найдена!")
@@ -2377,7 +2472,7 @@ async def start_specific_game(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     room["assign"] = assigns
     room["game_started"] = True
-    save_data(data)
+    save_all_data(data)
 
     successful_sends = 0
     for giver, receiver in assigns.items():
@@ -2418,7 +2513,7 @@ async def delete_room_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.answer("🚫 Доступ запрещён", show_alert=True)
         return
     
-    data = load_data()
+    data = load_all_data()
     
     if not data["rooms"]:
         await update.callback_query.edit_message_text(
@@ -2446,7 +2541,7 @@ async def delete_specific_room(update: Update, context: ContextTypes.DEFAULT_TYP
     await q.answer()
     
     code = q.data.replace("delete_", "")
-    data = load_data()
+    data = load_all_data()
     
     if code not in data["rooms"]:
         await q.edit_message_text("🚫 Комната не найдена!")
@@ -2467,7 +2562,7 @@ async def delete_specific_room(update: Update, context: ContextTypes.DEFAULT_TYP
             pass
     
     del data["rooms"][code]
-    save_data(data)
+    save_all_data(data)
     
     await q.edit_message_text(
         f"✅ <b>Комната {code} успешно удалена!</b>\n\n"
@@ -2484,7 +2579,7 @@ async def admin_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.callback_query.answer()
     
-    data = load_data()
+    data = load_all_data()
     total_users = len(user_data)
     
     total_games_won = sum(data.get("games_won", 0) for data in user_data.values())
@@ -2536,7 +2631,7 @@ async def admin_view_distribution_menu(update: Update, context: ContextTypes.DEF
     
     await update.callback_query.answer()
     
-    data = load_data()
+    data = load_all_data()
     
     if not data["rooms"]:
         await update.callback_query.edit_message_text(
@@ -2573,7 +2668,7 @@ async def admin_view_distribution(update: Update, context: ContextTypes.DEFAULT_
         return
     
     code = q.data.replace("view_dist_", "")
-    data = load_data()
+    data = load_all_data()
     
     if code not in data["rooms"]:
         await q.edit_message_text("🚫 Комната не найдена!")
@@ -2641,7 +2736,7 @@ async def admin_reset_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     code = q.data.replace("reset_game_", "")
-    data = load_data()
+    data = load_all_data()
     
     if code not in data["rooms"]:
         await q.edit_message_text("🚫 Комната не найдена!")
@@ -2656,7 +2751,7 @@ async def admin_reset_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Сбрасываем игру
     room["game_started"] = False
     room["assign"] = {}
-    save_data(data)
+    save_all_data(data)
     
     # Уведомляем участников
     for member_id in room["members"]:
@@ -2694,7 +2789,7 @@ async def admin_export_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     code = q.data.replace("export_room_", "")
-    data = load_data()
+    data = load_all_data()
     
     if code not in data["rooms"]:
         await q.answer("❌ Комната не найдена!", show_alert=True)
@@ -2788,7 +2883,7 @@ async def handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     search_query = update.message.text.strip().lower()
     context.user_data["search_mode"] = False
     
-    data = load_data()
+    data = load_all_data()
     results = []
     
     # Ищем по всем пользователям
@@ -2952,7 +3047,7 @@ async def handle_broadcast_message(update: Update, context: ContextTypes.DEFAULT
     
     elif broadcast_mode == "rooms":
         # Рассылка участникам комнат
-        data = load_data()
+        data = load_all_data()
         sent_users = set()
         
         for code, room in data["rooms"].items():
@@ -3168,7 +3263,7 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
             if not is_admin(update): 
                 await q.answer("🚫 Только администратор может просматривать комнаты", show_alert=True)
                 return
-            data = load_data()
+            data = load_all_data()
             txt = "📦 <b>Созданные комнаты:</b>\n\n"
             if not data["rooms"]:
                 txt += "Комнат пока нет. Создай первую комнату!"
