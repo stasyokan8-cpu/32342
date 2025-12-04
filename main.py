@@ -1762,15 +1762,19 @@ async def epic_grinch_battle(update: Update, context: ContextTypes.DEFAULT_TYPE)
         }
     }
     
+    # Создаем переменные среды ДО создания battle_state
+    environment = random.choice(["Снежная буря", "Замерзшая река", "Ёлочный лес", "Пещера Гринча", "Крыша города"])
+    weather_effect = random.choice([None, "visibility_down", "attack_up", "defense_down"])
+    
     context.user_data["battle_state"] = {
         "player": player_stats,
         "grinch": grinch_stats,
         "round": 1,
-        "environment": random.choice(["Снежная буря", "Замерзшая река", "Ёлочный лес", "Пещера Гринча", "Крыша города"]),
-        "weather_effect": random.choice([None, "visibility_down", "attack_up", "defense_down"]),
+        "environment": environment,  # Используем переменную
+        "weather_effect": weather_effect,  # Используем переменную
         "battle_log": [
             f"⚔️ <b>Начинается эпичная битва с {grinch_stats['name']}!</b>",
-            f"📍 <b>Место битвы:</b> {context.user_data['battle_state']['environment']}",
+            f"📍 <b>Место битвы:</b> {environment}",  # Используем переменную
             f"🎯 <b>Особенность Гринча:</b> {grinch_stats['traits']}",
             random.choice([
                 "❄️ Гринч: 'Я украду Рождество, а потом и твой сэндвич!'",
@@ -1779,8 +1783,8 @@ async def epic_grinch_battle(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 "🍪 Гринч: 'Печенья для Санты? Я их уже съел. Извини!'"
             ])
         ],
-        "combo": 0,  # Комбо-счетчик
-        "unexpected_events": []  # Неожиданные события
+        "combo": 0,
+        "unexpected_events": []
     }
     
     await show_battle_interface(update, context)
@@ -3749,13 +3753,6 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
                 "🎄 Возвращаемся в главное меню...",
                 reply_markup=enhanced_menu_keyboard(admin)
             )
-            
-        elif q.data == "battle_random_type":
-            await epic_grinch_battle(update, context)   
-            
-        elif q.data == "battle_random_type":
-            # Запускаем битву со случайным типом Гринча
-            await epic_grinch_battle(update, context)
             
         else:
             # Обработка игровых callback'ов
