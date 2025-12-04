@@ -2016,11 +2016,6 @@ async def quiz_next_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Завершение квиза и вывод результатов"""
-    # Проверяем, есть ли данные квиза
-    if "quiz" not in context.user_data:
-        if update.callback_query:
-            await update.callback_query.answer("❌ Данные квиза не найдены. Начните заново.", show_alert=True)
-        return
     
     quiz_data = context.user_data["quiz"]
     score = quiz_data["score"]
