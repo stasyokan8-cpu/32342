@@ -2929,7 +2929,15 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
                     [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
                 ])
             )
-            
+        
+        elif q.data == "wish_cancel":  # <-- ДОБАВЬ ЭТОТ ОБРАБОТЧИК
+            context.user_data["wish_mode"] = False
+            admin = is_admin(update)
+            await q.edit_message_text(
+                "❌ Ввод пожелания отменен.",
+                reply_markup=enhanced_menu_keyboard(admin)
+            )    
+        
         elif q.data == "admin_view_distribution_menu":
             await admin_view_distribution_menu(update, context)
             
@@ -3126,13 +3134,6 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
             # Обработка игровых callback'ов
             await game_handlers(update, context)
         
-        elif q.data == "wish_cancel":  # <-- ДОБАВЬ ЭТОТ ОБРАБОТЧИК
-            context.user_data["wish_mode"] = False
-            admin = is_admin(update)
-            await q.edit_message_text(
-                "❌ Ввод пожелания отменен.",
-                reply_markup=enhanced_menu_keyboard(admin)
-            )
         
     except Exception as e:
         print(f"Ошибка в обработчике callback: {e}")
