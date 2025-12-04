@@ -15,6 +15,8 @@ from telegram.ext import (
     Application, CommandHandler, MessageHandler,
     CallbackQueryHandler, ContextTypes, filters
 )
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 # Конфигурация для Replit
 TOKEN = os.environ.get("TELEGRAM_TOKEN", "8299215190:AAEqLfMOTjywx_jOeT-Kv1I5oKdgbdWzN9Y")
@@ -188,13 +190,9 @@ def init_user_data(user_id):
 
 def add_santa_points(user_id, points, context: ContextTypes.DEFAULT_TYPE = None):
     init_user_data(user_id)
-    user_data[str(user_id)]["santa_points"] = max(0, user_data[str(user.id)]["santa_points"] + points)
-    user_data[str(user.id)]["total_points"] = max(0, user_data[str(user.id)]["total_points"] + points)
-    
-    # ДОБАВИТЬ СОХРАНЕНИЕ ДАННЫХ
-    data = load_data()
-    data["users"] = user_data
-    save_data(data)
+    # ИСПРАВЛЕНО: заменил user.id на user_id
+    user_data[str(user_id)]["santa_points"] = max(0, user_data[str(user_id)]["santa_points"] + points)
+    user_data[str(user_id)]["total_points"] = max(0, user_data[str(user_id)]["total_points"] + points)
     
     if context and abs(points) >= 50:
         try:
@@ -2386,6 +2384,9 @@ def trigger_unexpected_event(battle_state):
             else:
                 grinch["hp"] -= abs(result)
 
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
+
 # Новая функция: обработка статусов
 def process_player_statuses(player, battle_log):
     # Уменьшаем длительность статусов
@@ -3307,7 +3308,7 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     
     # НОВЫЕ ДЕЙСТВИЯ:
     
-    # Исследование леса
+     # Исследование леса
     if action == "explore_forest":
         discoveries = [
             ("🌰 Нашёл шишку! Не очень полезно, но симпатично.", 5, 0),
@@ -3321,6 +3322,87 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         result_text = discovery
         points_earned = points
         exp_earned = exp
+    
+    # Изучение карты
+    elif action == "study_map":
+        quest_data["stamina"] = max(0, quest_data["stamina"] - 5)
+        result_text = "🗺️ Ты изучаешь карту и находишь короткий путь! Ты экономишь время и выносливость."
+        points_earned = 10
+        exp_earned = 5
+    
+    # Вызов оленя
+    elif action == "call_reindeer":
+        if random.random() > 0.5:
+            quest_data["stamina"] = min(100, quest_data["stamina"] + 30)
+            result_text = "🦌 Олень прибежал на твой зов! Ты отдохнул и восстановил выносливость."
+        else:
+            result_text = "🦌 Олень не услышал тебя. Попробуй позже."
+        points_earned = 15
+    
+    # Катание на коньках
+    elif action == "ice_skate":
+        quest_data["stamina"] = max(0, quest_data["stamina"] - 15)
+        quest_data["mood"] = min(10, quest_data["mood"] + 2)
+        skating_texts = [
+            "⛸️ Ты грациозно скользишь по льду! +2 к настроению!",
+            "⛸️ Ветер в лицо, снег искрится! Ты чувствуешь себя свободно!",
+            "⛸️ Ты выполнил пируэт! Правда, чуть не упал, но это не важно!"
+        ]
+        result_text = random.choice(skating_texts)
+        points_earned = 20
+    
+    # Рыбалка
+    elif action == "fishing":
+        quest_data["stamina"] = max(0, quest_data["stamina"] - 10)
+        if random.random() > 0.7:
+            fish_types = [
+                ("🐟 Обычная рыба", 10),
+                ("🐠 Радужная форель", 25),
+                ("🐡 Рыба-сюрприз", 30)
+            ]
+            fish, points = random.choice(fish_types)
+            result_text = f"🎣 Ты поймал {fish}! +{points} очков"
+            points_earned = points
+        else:
+            result_text = "🎣 Рыба сегодня не клюёт... Попробуй позже."
+            points_earned = 0
+    
+    # Ледяная скульптура
+    elif action == "ice_sculpture":
+        quest_data["stamina"] = max(0, quest_data["stamina"] - 12)
+        sculptures = [
+            "❄️ Ты вырезал снеговика! Он получился очень милым!",
+            "🎄 Ты создал ледяную ёлку! Она сверкает на солнце!",
+            "🦌 Ты сделал ледяного оленя! Санта был бы впечатлён!"
+        ]
+        result_text = random.choice(sculptures)
+        points_earned = 18
+    
+    # Проверка льда
+    elif action == "check_ice":
+        quest_data["stamina"] = max(0, quest_data["stamina"] - 8)
+        ice_thickness = random.randint(5, 30)
+        result_text = f"⚠️ Ты проверяешь лёд... Толщина: {ice_thickness} см. {'✅ Безопасно!' if ice_thickness > 10 else '❌ Опасно!'}"
+        points_earned = 10
+    
+    # Возвращение в лес
+    elif action == "return_forest":
+        quest_data["current_location"] = "forest_entrance"
+        quest_data["stamina"] = max(0, quest_data["stamina"] - 15)
+        result_text = "🌲 Ты возвращаешься в лес... Дорога была долгой, но ты полон решимости!"
+        points_earned = 5
+    
+    # Переход к озеру
+    elif action == "go_to_lake":
+        quest_data["current_location"] = "frozen_lake"
+        quest_data["stamina"] = max(0, quest_data["stamina"] - 20)
+        travel_texts = [
+            "❄️ Ты пробираешься к замёрзшему озеру... Снег хрустит под ногами.",
+            "🏔️ Долгий путь к озеру! Зато вид открывается потрясающий!",
+            "🎿 Благодаря снегоступам ты быстро добрался до озера!"
+        ]
+        result_text = random.choice(travel_texts)
+        points_earned = 10
     
     # Разведение костра
     elif action == "make_fire":
@@ -3419,6 +3501,16 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     # Обновление шага
     quest_data["step"] += 1
     
+        # Обработка завершения квестов
+    if action == "complete_frozen":
+        await complete_enhanced_quest(update, context)
+        return
+    elif action == "complete_gift":
+        await complete_gift_rescue_quest(update, context)
+        return
+    elif action == "complete_reindeer":
+        await complete_lost_reindeer_quest(update, context)
+        return
     # Начисление наград
     if points_earned > 0:
         add_santa_points(user.id, points_earned, context)
@@ -3442,6 +3534,88 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     
     await q.edit_message_text(full_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
 
+async def complete_gift_rescue_quest(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    quest_data = context.user_data.get("gift_rescue", {})
+    
+    base_points = quest_data.get("gifts_rescued", 0) * 40
+    stealth_bonus = quest_data.get("stealth", 0) // 10
+    
+    total_points = base_points + stealth_bonus
+    total_exp = quest_data.get("gifts_rescued", 0) * 20
+    
+    add_santa_points(user.id, total_points, context)
+    add_reindeer_exp(user.id, total_exp)
+    user_data[str(user.id)]["quests_finished"] = user_data[str(user.id)].get("quests_finished", 0) + 1
+    
+    completion_text = f"""
+🎁 <b>КВЕСТ ЗАВЕРШЁН: СПАСЕНИЕ ПОДАРКОВ</b> 🎁
+
+✨ Ты спас {quest_data.get('gifts_rescued', 0)} подарков!
+
+📊 <b>Награды:</b>
+• {total_points} очков Санты 🎅
+• {total_exp} опыта оленёнку 🦌
+• Достижение: Спаситель подарков
+
+Гринч в ярости, но дети будут рады своим подаркам! 🎄
+"""
+    
+    if "gift_rescue" in context.user_data:
+        del context.user_data["gift_rescue"]
+    
+    keyboard = [
+        [InlineKeyboardButton("🎮 Другие квесты", callback_data="quest_menu")],
+        [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+    ]
+    
+    await update.callback_query.edit_message_text(
+        completion_text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def complete_lost_reindeer_quest(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    quest_data = context.user_data.get("lost_reindeer", {})
+    
+    base_points = quest_data.get("reindeer_found", 0) * 50
+    provisions_bonus = quest_data.get("provisions", 0) // 5
+    
+    total_points = base_points + provisions_bonus
+    total_exp = quest_data.get("reindeer_found", 0) * 25
+    
+    add_santa_points(user.id, total_points, context)
+    add_reindeer_exp(user.id, total_exp)
+    user_data[str(user.id)]["quests_finished"] = user_data[str(user.id)].get("quests_finished", 0) + 1
+    
+    completion_text = f"""
+🦌 <b>КВЕСТ ЗАВЕРШЁН: ПОИСК ПОТЕРЯННЫХ ОЛЕНЕЙ</b> 🦌
+
+✨ Ты нашёл {quest_data.get('reindeer_found', 0)} оленей!
+
+📊 <b>Награды:</b>
+• {total_points} очков Санты 🎅
+• {total_exp} опыта оленёнку 🦌
+• Достижение: Искатель оленей
+
+Теперь упряжка Санты снова в полном составе! 🎅🦌
+"""
+    
+    if "lost_reindeer" in context.user_data:
+        del context.user_data["lost_reindeer"]
+    
+    keyboard = [
+        [InlineKeyboardButton("🎮 Другие квесты", callback_data="quest_menu")],
+        [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+    ]
+    
+    await update.callback_query.edit_message_text(
+        completion_text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    
 # 🏆 ФУНКЦИЯ ЗАВЕРШЕНИЯ УЛУЧШЕННОГО КВЕСТА
 async def complete_enhanced_quest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -4102,17 +4276,28 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
             await enhanced_quest_menu(update, context)
             
         elif q.data.startswith("quest_"):
-            if "frozen_runes" in q.data or "gift_rescue" in q.data or "lost_reindeer" in q.data:
-                # Старт квеста
-                if "frozen_runes" in q.data:
-                    await quest_frozen_runes(update, context)
-                elif "gift_rescue" in q.data:
-                    await quest_gift_rescue(update, context)
-                elif "lost_reindeer" in q.data:
-                    await quest_lost_reindeer(update, context)
-            elif "complete" in q.data or "action" in q.data:
-                # Действие в квесте
+            if q.data == "quest_menu":
+                await enhanced_quest_menu(update, context)
+            elif "frozen_runes" in q.data and not ("action" in q.data or "complete" in q.data):
+                await quest_frozen_runes(update, context)
+            elif "gift_rescue" in q.data and not ("action" in q.data or "complete" in q.data):
+                await quest_gift_rescue(update, context)
+            elif "lost_reindeer" in q.data and not ("action" in q.data or "complete" in q.data):
+                await quest_lost_reindeer(update, context)
+            elif "complete_frozen" in q.data:
+                await complete_enhanced_quest(update, context)
+            elif "action_" in q.data:
                 await quest_action_handler(update, context)
+            # Обработка кнопок квеста "Поиск замерзших рун"
+            elif any(keyword in q.data for keyword in [
+                "explore_forest", "study_map", "make_fire", "sing_song", 
+                "call_reindeer", "puzzle_riddle", "ice_skate", "fishing",
+                "search_under_ice", "ice_sculpture", "check_ice", "return_forest",
+                "use_item_menu", "go_to_lake"
+            ]):
+                await quest_action_handler(update, context)
+            else:
+                await enhanced_quest_menu(update, context)
             
         elif q.data == "snowfall":
             await animated_snowfall(update, context)
