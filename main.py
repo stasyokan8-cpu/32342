@@ -33,36 +33,32 @@ if not TOKEN:
     print("💡 Установите переменную окружения TELEGRAM_TOKEN в Replit Secrets")
     sys.exit(1)
 
-
 user_data = {}
 
-# Единая функция загрузки данных
 def load_all_data():
     """Загружает все данные из файла и обновляет глобальную переменную user_data"""
+    global user_data  # ДОБАВЬТЕ ЭТУ СТРОКУ В НАЧАЛЕ ФУНКЦИИ
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
             if "users" not in data:
                 data["users"] = {}
-            global user_data
             user_data = data["users"]
             return data
     except FileNotFoundError:
         default_data = {"rooms": {}, "users": {}}
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(default_data, f, indent=4, ensure_ascii=False)
-        global user_data
         user_data = {}
         return default_data
     except Exception as e:
         print(f"Ошибка загрузки данных: {e}")
-        global user_data
         user_data = {}
         return {"rooms": {}, "users": {}}
 
-# Обновите функцию save_data
 def save_all_data(data):
     """Сохраняет все данные в файл"""
+    global user_data  # ДОБАВЬТЕ ЭТУ СТРОЧКУ
     data["users"] = user_data
     try:
         with open(DATA_FILE, "w", encoding="utf-8") as f:
@@ -71,45 +67,6 @@ def save_all_data(data):
     except Exception as e:
         print(f"Ошибка сохранения данных: {e}")
         return False
-
-
-def load_all_data():
-    try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if "users" not in data:
-                data["users"] = {}
-            global user_data
-            user_data = data["users"]
-            return data
-    except FileNotFoundError:
-        default_data = {"rooms": {}, "users": {}}
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(default_data, f, indent=4, ensure_ascii=False)
-        return default_data
-    except Exception as e:
-        print(f"Ошибка загрузки данных: {e}")
-        return {"rooms": {}, "users": {}}
-
-def save_all_data(data):
-    data["users"] = user_data
-    try:
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
-    except Exception as e:
-        print(f"Ошибка сохранения данных: {e}")
-
-def load_all_data():
-    """Загружает данные из файла без изменения глобальной переменной user_data"""
-    try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data
-    except FileNotFoundError:
-        return {"rooms": {}, "users": {}}
-    except Exception as e:
-        print(f"Ошибка загрузки данных: {e}")
-        return {"rooms": {}, "users": {}}
 # -------------------------------------------------------------------
 # БАЗОВЫЕ УТИЛИТЫ
 # -------------------------------------------------------------------
