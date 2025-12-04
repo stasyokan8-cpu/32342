@@ -37,13 +37,13 @@ user_data = {}
 
 def load_all_data():
     """Загружает все данные из файла и обновляет глобальную переменную user_data"""
-    global user_data  # ДОБАВЬТЕ ЭТУ СТРОКУ В НАЧАЛЕ ФУНКЦИИ
+    global user_data  # ДОБАВЬТЕ ЭТУ СТРОЧКУ
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
             if "users" not in data:
                 data["users"] = {}
-            user_data = data["users"]
+            user_data = data["users"]  # УДАЛИТЕ "global user_data" из этой строки
             return data
     except FileNotFoundError:
         default_data = {"rooms": {}, "users": {}}
@@ -63,10 +63,9 @@ def save_all_data(data):
     try:
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
-        return True
     except Exception as e:
         print(f"Ошибка сохранения данных: {e}")
-        return False
+
 # -------------------------------------------------------------------
 # БАЗОВЫЕ УТИЛИТЫ
 # -------------------------------------------------------------------
@@ -87,47 +86,16 @@ def back_to_menu_keyboard(admin=False):
 # СИСТЕМА ДАННЫХ ПОЛЬЗОВАТЕЛЯ (без очков)
 # -------------------------------------------------------------------
 def init_user_data(user_id):
+    """Инициализирует данные пользователя в глобальной переменной user_data"""
+    global user_data  # ДОБАВЬТЕ ЭТУ СТРОЧКУ
     user_id_str = str(user_id)
     
     # Загружаем актуальные данные из файла
-    data = load_all_data()
+    data = load_all_data()  # Эта функция уже обновляет глобальную user_data
     
+    # Если пользователя нет в глобальной переменной, создаем его
     if user_id_str not in user_data:
-        # Проверяем, есть ли пользователь в файле
-        if user_id_str in data.get("users", {}):
-            # Копируем данные из файла
-            user_data[user_id_str] = data["users"][user_id_str].copy()
-        else:
-            # Создаем нового пользователя
-            user_data[user_id_str] = {
-                "achievements": [],
-                "games_won": 0,
-                "grinch_fights": 0,
-                "grinch_wins": 0,
-                "quiz_points": 0,
-                "quiz_wins": 0,
-                "name": "",
-                "username": "",
-                "answered_quiz_questions": [],
-                "total_quiz_correct": 0,
-                "total_quiz_played": 0,
-                "congratulated_333": False
-            }
-    
-    # Убедимся, что все необходимые поля существуют
-    required_fields = [
-        "achievements", "games_won", "grinch_fights", "grinch_wins",
-        "quiz_points", "quiz_wins", "name", "username",
-        "answered_quiz_questions", "total_quiz_correct", 
-        "total_quiz_played", "congratulated_333"
-    ]
-    
-    for field in required_fields:
-        if field not in user_data[user_id_str]:
-            user_data[user_id_str][field] = [] if field == "achievements" or field == "answered_quiz_questions" else 0 if "int" in str(type(0)) else ""
-    
-    if str(user_id) not in user_data:
-        user_data[str(user_id)] = {
+        user_data[user_id_str] = {
             "achievements": [],
             "games_won": 0,
             "grinch_fights": 0,
@@ -139,16 +107,35 @@ def init_user_data(user_id):
             "answered_quiz_questions": [],
             "total_quiz_correct": 0,
             "total_quiz_played": 0,
-            "congratulated_333": False  # <-- ДОБАВЬТЕ ЭТУ СТРОЧКУ
+            "congratulated_333": False
         }
+    
+    # Убедимся, что все необходимые поля существуют
+    required_fields = [
+        "achievements", "games_won", "grinch_fights", "grinch_wins",
+        "quiz_points", "quiz_wins", "name", "username",
+        "answered_quiz_questions", "total_quiz_correct", 
+        "total_quiz_played", "congratulated_333"
+    ]
+    
+    for field in required_fields:
+        if field not in user_data[user_id_str]:
+            if field in ["achievements", "answered_quiz_questions"]:
+                user_data[user_id_str][field] = []
+            elif field in ["name", "username"]:
+                user_data[user_id_str][field] = ""
+            else:
+                user_data[user_id_str][field] = 0
 
 def add_achievement(user_id, achievement_key):
+    """Добавляет достижение пользователю"""
+    global user_data  # ДОБАВЬТЕ ЭТУ СТРОЧКУ
     init_user_data(user_id)
-    if achievement_key not in user_data[str(user.id)]["achievements"]:
-        user_data[str(user.id)]["achievements"].append(achievement_key)
+    if achievement_key not in user_data[str(user_id)]["achievements"]:
+        user_data[str(user_id)]["achievements"].append(achievement_key)
     
+    # Сохраняем данные
     data = load_all_data()
-    data["users"] = user_data
     save_all_data(data)
 
 def is_user_in_room(user_id):
@@ -558,12 +545,21 @@ def get_gift_combinations():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     admin = is_admin(update)
+    
+    # Инициализируем данные пользователя
     init_user_data(user.id)
     
-    data = load_all_data()
-    
+    # Обновляем имя и username пользователя
+    global user_data  # ДОБАВЬТЕ ЭТУ СТРОЧКУ
     user_data[str(user.id)]["name"] = user.full_name
     user_data[str(user.id)]["username"] = user.username or "без username"
+    
+    # Сохраняем данные
+    data = load_all_data()
+    data["users"] = user_data
+    save_all_data(data)
+    
+    # Остальной код функции остается без изменений...
     
     welcome_text = f"""
 🎄 Добро пожаловать, {user.first_name}! 🎅
@@ -3358,6 +3354,16 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
     except:
         pass
+
+def check_data_file():
+    """Проверяет и создает файл данных, если он не существует"""
+    if not os.path.exists(DATA_FILE):
+        print(f"📁 Создаю файл данных: {DATA_FILE}")
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump({"rooms": {}, "users": {}}, f, indent=4, ensure_ascii=False)
+        print("✅ Файл данных создан")
+    else:
+        print(f"✅ Файл данных найден: {DATA_FILE}")
 
 def main():
     print("🎄 Инициализация бота Тайный Санта...")
