@@ -134,6 +134,7 @@ async def restricted_access_check(update: Update, context: ContextTypes.DEFAULT_
         "start", "join_room_menu", "join_room", "room_help", 
         "back_menu", "admin_*", "mini_game_menu", "game_", "quiz_",
         "battle_", "gift_ideas_menu", "gift_", "profile", "wish_examples"
+        "wish_cancel", "wish_start"  # 🔥 ДОБАВЬТЕ ЭТУ СТРОЧКУ
     ]
     
     # Если функция в списке разрешенных или пользователь админ
@@ -558,6 +559,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def wish_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
+    if not update.callback_query:
+        await update.message.reply_text("Используйте кнопки в меню для этой команды.")
+        return
+    
     # 🔥 Сначала проверяем доступ к функции
     if not await restricted_access_check(update, context, "wish_start"):
         return
@@ -663,6 +668,14 @@ async def wish_examples(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    
+    # 🔥 Очищаем ВСЕ режимы при любом текстовом сообщении (кроме специальных случаев)
+    if not context.user_data.get("wish_mode") and not context.user_data.get("join_mode"):
+        context.user_data["wish_mode"] = False
+        context.user_data["join_mode"] = False
+        context.user_data["search_mode"] = False
+    
+    # 🔥 Пропускаем если это callback_query
     if update.callback_query:
         return
         
@@ -782,25 +795,13 @@ https://t.me/{(await context.bot.get_me()).username}?start=join_{code}
         )
 
 async def join_room_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message:
-        return
-        
-    data = load_data()
-    user = update.effective_user
-    
-    # Получаем код из сообщения
-    if update.message.text.startswith('/join_room'):
-        parts = update.message.text.split()
-        code = parts[1].strip().upper() if len(parts) > 1 else None
-    else:
-        code = update.message.text.strip().upper()
-    
-    # 🔥 ВАЖНО: Очищаем ВСЕ режимы при присоединении к комнате
+    # 🔥 Очищаем все режимы
+    context.user_data["wish_mode"] = False
     context.user_data["join_mode"] = False
-    context.user_data["wish_mode"] = False  # <-- ДОБАВЬ ЭТУ СТРОКУ
-    context.user_data["search_mode"] = False  # <-- И ЭТУ тоже на всякий случай
+    context.user_data["search_mode"] = False
     
-    await update.callback_query.answer()
+    if update.callback_query:
+        await update.callback_query.answer()
     
     join_instructions = """
 🎅 <b>Присоединение к комнате</b>
@@ -808,7 +809,6 @@ async def join_room_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ✨ <b>Как присоединиться:</b>
 1. Попроси у организатора код комнаты (формат: RXXXXX)
 2. Напиши код комнаты в чат с ботом
-3. Или используй прямую ссылку
 
 🔑 <b>Правила:</b>
 • Можно быть только в одной комнате
@@ -819,14 +819,26 @@ async def join_room_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 💡 <b>Подсказка:</b> Если у тебя есть код комнаты, просто напиши его ниже:
 """
     
-    await update.callback_query.edit_message_text(
-        join_instructions,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("❓ Где взять код комнаты?", callback_data="room_help")],
-            [InlineKeyboardButton("⬅️ Назад в меню", callback_data="back_menu")]
-        ])
-    )
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            join_instructions,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("❓ Где взять код комнаты?", callback_data="room_help")],
+                [InlineKeyboardButton("⬅️ Назад в меню", callback_data="back_menu")]
+            ])
+        )
+    else:
+        await update.message.reply_text(
+            join_instructions,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("❓ Где взять код комнаты?", callback_data="room_help")],
+                [InlineKeyboardButton("⬅️ Назад в меню", callback_data="back_menu")]
+            ])
+        )
+    
+    # 🔥 Включаем режим присоединения
     context.user_data["join_mode"] = True
 
 async def room_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -3001,6 +3013,13 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
         return
 
     try:
+        # 🔥 Очищаем режимы при ЛЮБОМ callback (кроме wish_mode)
+        if q.data != "wish":
+            context.user_data["wish_mode"] = False
+        if q.data != "join_room_menu":
+            context.user_data["join_mode"] = False
+        context.user_data["search_mode"] = False
+        
         # Основные команды меню
         if q.data == "wish":
             await wish_start(update, context)
