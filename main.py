@@ -24,6 +24,49 @@ DATA_FILE = "santa_data.json"
 print(f"🎄 Запуск Secret Santa Bot v3.4 на Replit...")
 print(f"Токен: {'✅ Установлен' if TOKEN else '❌ НЕ НАЙДЕН!'}")
 
+# 🎪 НОВОГОДНИЕ ШУТКИ ДЛЯ КВЕСТА
+QUEST_JOKES = [
+    "Почему снеговик смотрел в холодильник? Искал морковку получше!",
+    "Что сказал один леденец другому? 'Мы с тобой на одной палочке!'",
+    "Почему Дед Мороз такой хороший? Потому что он всех прощает!",
+    "Как снежинки называют своих родителей? Снегопапа и снегомама!",
+    "Почему ёлка не ходит в школу? Потому что она уже ёлка!",
+    "Что сказал шарф шапке? 'Давай держаться вместе, а то простудимся!'",
+    "Почему снег никогда не бывает одиноким? Потому что он всегда в компании!",
+    "Какой любимый фрукт у снеговика? Мороженое!",
+    "Почему гномы такие маленькие? Чтобы помещаться в носках для подарков!",
+    "Что говорит Дед Мороз, когда ему жарко? 'Ох, и напекло!'"
+]
+
+# ❄️ СЛУЧАЙНЫЕ СОБЫТИЯ В КВЕСТЕ
+QUEST_RANDOM_EVENTS = [
+    {
+        "text": "🎅 Внезапно появился маленький эльф и подкинул тебе зелье маны!",
+        "effect": {"mana": 20, "mood": 1},
+        "chance": 0.1
+    },
+    {
+        "text": "🦌 Олень пробежал мимо и обрызгал тебя снегом! Холодно, но весело!",
+        "effect": {"temperature": -5, "mood": 2},
+        "chance": 0.15
+    },
+    {
+        "text": "🍪 Ты наступил на что-то хрустящее... Ой, это было печенье! Жаль...",
+        "effect": {"stamina": -5, "mood": -1},
+        "chance": 0.08
+    },
+    {
+        "text": "🌟 Упала звезда! Загадай желание! (Шепотом: 'Хочу больше очков Санты!')",
+        "effect": {"points": 15, "mood": 3},
+        "chance": 0.05
+    },
+    {
+        "text": "🎶 Ты случайно напешь новогоднюю песенку, и вокруг тебя начинают танцевать снежинки!",
+        "effect": {"mood": 4, "stamina": 10},
+        "chance": 0.07
+    }
+]
+
 # Проверка токена
 if not TOKEN:
     print("❌ ОШИБКА: TELEGRAM_TOKEN не установлен!")
@@ -145,8 +188,13 @@ def init_user_data(user_id):
 
 def add_santa_points(user_id, points, context: ContextTypes.DEFAULT_TYPE = None):
     init_user_data(user_id)
-    user_data[str(user_id)]["santa_points"] = max(0, user_data[str(user_id)]["santa_points"] + points)
-    user_data[str(user_id)]["total_points"] = max(0, user_data[str(user_id)]["total_points"] + points)
+    user_data[str(user_id)]["santa_points"] = max(0, user_data[str(user.id)]["santa_points"] + points)
+    user_data[str(user.id)]["total_points"] = max(0, user_data[str(user.id)]["total_points"] + points)
+    
+    # ДОБАВИТЬ СОХРАНЕНИЕ ДАННЫХ
+    data = load_data()
+    data["users"] = user_data
+    save_data(data)
     
     if context and abs(points) >= 50:
         try:
@@ -194,12 +242,20 @@ def add_reindeer_exp(user_id, amount):
         
         if current_level + 1 == 5:
             add_achievement(user_id, "reindeer_master")
+            
+    data = load_data()
+    data["users"] = user_data
+    save_data(data)
 
 def add_achievement(user_id, achievement_key):
     init_user_data(user_id)
     if achievement_key not in user_data[str(user_id)]["achievements"]:
         user_data[str(user_id)]["achievements"].append(achievement_key)
         add_santa_points(user_id, 50)
+    
+    data = load_data()
+    data["users"] = user_data
+    save_data(data)
 
 # -------------------------------------------------------------------
 # 🎁 РАСШИРЕННЫЙ ГЕНЕРАТОР ИДЕЙ ПОДАРКОВ
@@ -790,7 +846,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • Писать пожелания подарка
 • Играть в новогодние мини-игры
 • Проходить квесты и получать достижения
-• Соревноваться с друзьями в рейтинге
+• Смотреть топ игроков в своей комнате  # ИЗМЕНЕНО: убрал "соревноваться в рейтинге"
 
 <b>💡 Подсказка:</b> Используй кнопки ниже для навигации
 """
@@ -924,6 +980,43 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Выбери действие в меню:",
         reply_markup=enhanced_menu_keyboard(admin)
     )
+    
+    # Обработка ответов на загадки в квесте
+    if context.user_data.get("current_riddle"):
+        user_answer = update.message.text.lower().strip()
+        correct_answer = context.user_data["current_riddle"]["a"]
+        
+        if user_answer == correct_answer:
+            quest_data = context.user_data.get("frozen_runes", {})
+            if quest_data:
+                quest_data["puzzles_solved"] += 1
+                quest_data["mood"] = min(10, quest_data["mood"] + 2)
+                add_santa_points(update.effective_user.id, 25, context)
+                add_reindeer_exp(update.effective_user.id, 15)
+                
+                funny_responses = [
+                    "🎉 Верно! Да ты настоящий мудрец!",
+                    "🧠 Браво! Твой мозг работает лучше, чем GPS у Санты!",
+                    "🌟 Правильно! Эльфы аплодируют твоей смекалке!",
+                    "🎁 Отгадал! Вот тебе виртуальное печенье! 🍪"
+                ]
+                
+                await update.message.reply_text(
+                    random.choice(funny_responses),
+                    reply_markup=back_to_menu_keyboard()
+                )
+        else:
+            funny_wrong = [
+                "🤔 Не-а! Попробуй ещё раз! Подсказка: ответ проще, чем кажется!",
+                "🎄 Эльфы хохочут! Не угадал! Но ты близко!",
+                "❄️ Холодно! Совсем не то! Подумай о снеге и ёлках!",
+                "🦌 Олень лицом в снег упал от твоего ответа! Попробуй снова!"
+            ]
+            
+            await update.message.reply_text(random.choice(funny_wrong))
+        
+        context.user_data["current_riddle"] = None
+        return
 
 # -------------------------------------------------------------------
 # 🏠 РАЗДЕЛ: УПРАВЛЕНИЕ КОМНАТАМИ
@@ -1270,14 +1363,17 @@ async def show_specific_room_top(update: Update, context: ContextTypes.DEFAULT_T
         if user_data_entry:
             score = user_data_entry.get("santa_points", 0)
             name = room["members"][user_id_str]["name"]
+            username = room["members"][user_id_str].get("username", "")
             reindeer_level = user_data_entry.get("reindeer_level", 0)
-            player_stats.append((user_id_str, score, name, reindeer_level))
+            # ИСПРАВЛЕНО: Добавляем username для отображения
+            player_stats.append((user_id_str, score, name, username, reindeer_level))
         else:
             # Если пользователя нет в user_data, но он в комнате
             score = 0
             name = room["members"][user_id_str]["name"]
+            username = room["members"][user_id_str].get("username", "")
             reindeer_level = 0
-            player_stats.append((user_id_str, score, name, reindeer_level))
+            player_stats.append((user_id_str, score, name, username, reindeer_level))
     
     # Сортируем по очкам
     player_stats.sort(key=lambda x: x[1], reverse=True)
@@ -1289,7 +1385,7 @@ async def show_specific_room_top(update: Update, context: ContextTypes.DEFAULT_T
         top_text += "Пригласите друзей и начните играть!"
     else:
         medals = ["🥇", "🥈", "🥉"]
-        for i, (user_id, score, name, reindeer_level) in enumerate(player_stats):
+        for i, (user_id, score, name, username, reindeer_level) in enumerate(player_stats):
             if i < 3:
                 medal = medals[i]
             else:
@@ -1303,9 +1399,12 @@ async def show_specific_room_top(update: Update, context: ContextTypes.DEFAULT_T
             else:
                 level_emoji = "🌟" * min(reindeer_level, 5)
             
-            # Показываем всеx участников комнаты (не только 10)
+            # ИСПРАВЛЕНО: Показываем имя и username
             display_name = name[:20] + "..." if len(name) > 20 else name
-            top_text += f"{medal} {display_name} — {score} очков {level_emoji}\n"
+            username_display = f"(@{username})" if username and username != "без username" else ""
+            
+            # ИСПРАВЛЕНО: Форматируем строку с username
+            top_text += f"{medal} {display_name} {username_display} — {score} очков {level_emoji}\n"
     
     top_text += f"\n<b>Всего участников:</b> {len(room['members'])}"
     top_text += f"\n<b>Статус игры:</b> {'🎮 Игра идет' if room['game_started'] else '⏳ Ожидание'}"
@@ -2699,63 +2798,6 @@ async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=back_to_menu_keyboard()
         )
 
-async def show_top_players(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Собираем статистику всех пользователей
-    player_stats = []
-    
-    for user_id, data in user_data.items():
-        # Используем santa_points вместо total_points для актуальных очков
-        score = data.get("santa_points", 0)
-        name = data.get("name", f"Игрок {user_id}")
-        reindeer_level = data.get("reindeer_level", 0)
-        
-        # Включаем в топ только если есть очки или уровень оленя
-        if score > 0 or reindeer_level > 0:
-            player_stats.append((user_id, score, name, reindeer_level))
-    
-    # Сортируем по очкам
-    player_stats.sort(key=lambda x: x[1], reverse=True)
-    
-    top_text = "🏆 <b>Глобальный топ игроков:</b> \n\n"
-    
-    if not player_stats:
-        top_text += "Пока никто не играл... Будь первым! 🎄\n\n"
-        top_text += "Сыграй в мини-игры или пройди квест, чтобы появиться в рейтинге!"
-    else:
-        medals = ["🥇", "🥈", "🥉"]
-        for i, (user_id, score, name, reindeer_level) in enumerate(player_stats[:15]):
-            if i < 3:
-                medal = medals[i]
-            else:
-                medal = f"{i+1}."
-            
-            # Форматируем эмодзи уровня
-            if reindeer_level == 0:
-                level_emoji = "🐣"
-            elif reindeer_level < 3:
-                level_emoji = "🦌" * (reindeer_level + 1)
-            else:
-                level_emoji = "🌟" * min(reindeer_level, 5)
-            
-            # Обрезаем длинные имена
-            display_name = name[:20] + "..." if len(name) > 20 else name
-            top_text += f"{medal} {display_name} — {score} очков {level_emoji}\n"
-    
-    top_text += f"\n<b>Всего игроков в рейтинге:</b> {len(player_stats)}"
-    top_text += f"\n<b>Всего зарегистрировано:</b> {len(user_data)}"
-    
-    if update.callback_query:
-        await update.callback_query.edit_message_text(
-            top_text, 
-            parse_mode='HTML',
-            reply_markup=back_to_menu_keyboard()
-        )
-    else:
-        await update.message.reply_text(
-            top_text, 
-            parse_mode='HTML',
-            reply_markup=back_to_menu_keyboard()
-        )
 # -------------------------------------------------------------------
 # 🎪 РАЗДЕЛ: КВЕСТЫ (УПРОЩЕННЫЕ И РАБОЧИЕ)
 # -------------------------------------------------------------------
@@ -2812,57 +2854,358 @@ async def quest_frozen_runes(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     # Инициализация квеста
     if "frozen_runes" not in context.user_data:
-        context.user_data["frozen_runes"] = {
-            "step": 1,
-            "runes_found": 0,
-            "total_runes": 3,
-            "health": 100,
-            "mana": 50
+    context.user_data["frozen_runes"] = {
+        "step": 1,  # Текущий этап квеста
+        "runes_found": 0,
+        "total_runes": 5,  # Увеличиваем с 3 до 5 рун
+        "health": 120,  # Увеличиваем здоровье
+        "mana": 80,  # Увеличиваем ману
+        "stamina": 100,  # Новая характеристика - выносливость
+        "inventory": {
+            "torch": 1,  # Факел для освещения
+            "rope": 1,  # Верёвка для скалолазания
+            "warm_clothes": 1,  # Тёплая одежда
+            "magic_compass": 0,  # Волшебный компас
+            "snow_shoes": 0,  # Снегоступы
+            "reindeer_whistle": 0  # Свисток для вызова оленя
+        },
+        "discovered_locations": [],  # Открытые локации
+        "current_location": "forest_entrance",  # Текущая локация
+        "npc_met": [],  # Встреченные NPC
+        "puzzles_solved": 0,  # Решённые головоломки
+        "runes_info": {},  # Информация о найденных рунах
+        "temperature": 0,  # Температура (-10 до +5)
+        "weather": random.choice(["Снегопад", "Ясно", "Метель", "Туман"]),
+        "time_of_day": "День",  # День/Ночь
+        "jokes_told": 0,  # Сказано шуток
+        "mood": 10,  # Настроение (1-10)
+        "special_events": [],  # Особые события
+        "companion": None  # Спутник (олень, эльф и т.д.)
+    }
+    
+        # 🎭 СИСТЕМА ЛОКАЦИЙ
+    QUEST_LOCATIONS = {
+        "forest_entrance": {
+            "name": "🌲 Вход в Зачарованный лес",
+            "description": "Снег скрипит под ногами, а ветви елей склоняются под тяжестью инея. Здесь начинается твоё приключение!",
+            "actions": ["исследовать", "осмотреться", "идти вглубь", "разжечь костёр"],
+            "hidden_items": ["замёрзшая ягода", "старая карта", "снежный шар"],
+            "events": ["встреча с белкой", "находка старого свитера", "неожиданный снежок"]
+        },
+        "frozen_lake": {
+            "name": "❄️ Замёрзшее озеро Судьбы",
+            "description": "Лёд под ногами поскрипывает, а под ним плавают светящиеся рыбки. Осторожно, лёд может быть тонким!",
+            "actions": ["проверить лёд", "порубить лёд", "покататься на коньках", "порыбачить"],
+            "hidden_items": ["ледяной кристалл", "замороженная рыба", "потерянный конёк"],
+            "events": ["пролом льда", "встреча с ледяным духом", "нахождение тайника"]
+        },
+        "crystal_cave": {
+            "name": "💎 Хрустальная пещера",
+            "description": "Стены сверкают тысячами ледяных кристаллов. Здесь так холодно, что дыхание замерзает в воздухе!",
+            "actions": ["собирать кристаллы", "слушать эхо", "искать выход", "рисовать на стенах"],
+            "hidden_items": ["хрустальный осколок", "ледяной цветок", "древняя надпись"],
+            "events": ["обвал сталактитов", "встреча с пещерным медведем", "нахождение древнего алтаря"]
+        },
+        "ancient_tree": {
+            "name": "🎄 Древняя Ёлка Мудрости",
+            "description": "Это дерево помнит всех Сант прошлого. Его ветви украшены волшебными игрушками, которые тихо звенят на ветру.",
+            "actions": ["загадать желание", "слушать дерево", "искать руны", "украсить ветку"],
+            "hidden_items": ["золотой орех", "стеклянный шар", "засохшая ветвь"],
+            "events": ["разговор с деревом", "падение шишки на голову", "появление лесных духов"]
+        },
+        "snowy_peak": {
+            "name": "🏔️ Снежная вершина Ветров",
+            "description": "Отсюда видно всё королевство! Ветер такой сильный, что может унести не только шапку, но и плохие мысли.",
+            "actions": ["сделать селфи", "кричать в пропасть", "лепить снеговика", "искать укрытие"],
+            "hidden_items": ["орлиное перо", "снежный бриллиант", "потерянная варежка"],
+            "events": ["встреча с горным орлом", "лавина", "полярное сияние"]
         }
+    }
+
+    # 🎭 СИСТЕМА NPC (персонажей)
+    QUEST_NPCS = {
+        "frosty_elf": {
+            "name": "🧝 Морозный эльф Ине́й",
+            "greetings": [
+                "Ой-ёй-ёй, кто это к нам пожаловал? Не замёрз ещё?",
+                "Ты ищешь руны? А они тебя не ищут! Ха-ха!",
+                "У меня нос краснее, чем у Рудольфа! Но это секрет..."
+            ],
+            "jokes": [
+                "Почему снеговик не жадный? Потому что у него холодные ручки!",
+                "Что сказал один снежок другому? 'Давай слепимся!'",
+                "Как снежинки называют своих детей? Снегопузики!"
+            ],
+            "quests": ["найти потерянную варежку", "разгадать ледяную загадку", "украсить ёлку"],
+            "rewards": {"points": 30, "item": "эльфийская пыльца"}
+        },
+        "talking_reindeer": {
+            "name": "🦌 Говорящий олень Рогастик",
+            "greetings": [
+                "Привет! Не видел ли ты мой красный нос? Я его где-то потерял...",
+                "Осторожно на льду! В прошлый раз я так растянулся, что до сих пор звёзды вижу!",
+                "Я бы покатал тебя, но у меня сезонная линька..."
+            ],
+            "jokes": [
+                "Почему олень переходит дорогу? Чтобы попасть на другую рождественскую открытку!",
+                "Что олень сказал своему GPS? 'Не веди меня на Северный полюс, я там уже был!'",
+                "Как олени называют своего стоматолога? Зубной эльф!"
+            ],
+            "quests": ["найти вкусный мох", "почистить рога", "спеть рождественскую песню"],
+            "rewards": {"points": 40, "item": "олений свисток"}
+        },
+        "ice_wizard": {
+            "name": "🧙 Ледяной волшебник Морозил",
+            "greetings": [
+                "Бр-р-р! Здравствуй, путник! Не хочешь эскимо? Ой, это моя борода...",
+                "Мои заклинания такие холодные, что даже кофе замерзает!",
+                "Я могу превратить что угодно в лёд. Даже твои долги по кредитам!"
+            ],
+            "jokes": [
+                "Что сказал холодильник морозильнику? 'Ты слишком много о себе мнишь!'",
+                "Почему снежинка пошла к психологу? У неё был комплекс неполноценности!",
+                "Что лежит на дне океана и дрожит? Нервный лёд!"
+            ],
+            "quests": ["собрать ледяные кристаллы", "решить магическую головоломку", "найти волшебный посох"],
+            "rewards": {"points": 50, "item": "заклинание отморозки"}
+        }
+    }
+
+    # 🎯 МИНИ-ИГРЫ ВНУТРИ КВЕСТА
+    async def quest_mini_game(update: Update, context: ContextTypes.DEFAULT_TYPE, game_type):
+        """Мини-игры внутри квеста"""
+        user = update.effective_user
+        quest_data = context.user_data.get("frozen_runes", {})
+        
+        game_results = {
+            "riddle": {
+                "questions": [
+                    {"q": "Что можно увидеть с закрытыми глазами?", "a": "сон"},
+                    {"q": "Чем больше берёшь, тем больше становится. Что это?", "a": "яма"},
+                    {"q": "Висит груша - нельзя скушать. Что это?", "a": "лампочка"},
+                    {"q": "Зимой и летом одним цветом?", "a": "ёлка"},
+                    {"q": "Что идёт, не двигаясь с места?", "a": "время"}
+                ],
+                "reward": {"points": 25, "exp": 15, "mood": 2}
+            },
+            "memory": {
+                "description": "Запомни последовательность снежинок!",
+                "reward": {"points": 30, "exp": 20, "stamina": 10}
+            },
+            "ice_fishing": {
+                "description": "Поймай волшебную рыбу!",
+                "fish": ["золотая рыбка", "ледяной окунь", "снежный карп", "магическая форель"],
+                "reward": {"points": 35, "exp": 25, "health": 15}
+            }
+        }
+        
+        if game_type == "riddle":
+            question = random.choice(game_results["riddle"]["questions"])
+            context.user_data["current_riddle"] = question
+            
+            await update.callback_query.edit_message_text(
+                f"🧩 <b>Загадка от ледяного духа:</b>\n\n"
+                f"<i>{question['q']}</i>\n\n"
+                f"Напиши ответ в чат:",
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🤔 Подсказка (-5 маны)", callback_data="quest_hint")],
+                    [InlineKeyboardButton("🏃 Пропустить", callback_data="quest_skip_riddle")]
+                ])
+            )
+
+    # 🎄 СИСТЕМА ПОГОДЫ И НАСТРОЕНИЯ
+    def update_quest_weather(quest_data):
+        """Динамическое изменение погоды в квесте"""
+        weather_changes = {
+            "Снегопад": {"temperature": -5, "stamina_cost": 2, "mood": -1},
+            "Ясно": {"temperature": 0, "stamina_cost": 1, "mood": 1},
+            "Метель": {"temperature": -15, "stamina_cost": 3, "mood": -2},
+            "Туман": {"temperature": -3, "stamina_cost": 2, "mood": 0},
+            "Полярное сияние": {"temperature": -10, "stamina_cost": 1, "mood": 3}
+        }
+        
+        # Случайное изменение погоды
+        if random.random() < 0.3:
+            quest_data["weather"] = random.choice(list(weather_changes.keys()))
+        
+        # Обновление характеристик
+        weather_effect = weather_changes.get(quest_data["weather"], {})
+        quest_data["temperature"] += weather_effect.get("temperature", 0)
+        quest_data["stamina"] = max(0, quest_data["stamina"] - weather_effect.get("stamina_cost", 1))
+        quest_data["mood"] = max(1, min(10, quest_data["mood"] + weather_effect.get("mood", 0)))
+        
+        # Эффекты экстремальной температуры
+        if quest_data["temperature"] < -20:
+            quest_data["health"] -= 5
+            return "❄️ СЛИШКОМ ХОЛОДНО! Ты теряешь здоровье от мороза!"
+        elif quest_data["temperature"] > 5:
+            quest_data["stamina"] -= 10
+            return "☀️ Неожиданная оттепель! Тает снег и твоя выносливость..."
+        
+        return None
+
+    # 🎁 СИСТЕМА ИНВЕНТАРЯ И ПРЕДМЕТОВ
+    QUEST_ITEMS = {
+        "torch": {"name": "🔥 Факел", "effect": "+10 к видимости ночью", "uses": 10},
+        "rope": {"name": "🧶 Верёвка", "effect": "Позволяет карабкаться", "uses": 5},
+        "warm_clothes": {"name": "🧥 Тёплая одежда", "effect": "+5 к морозостойкости", "uses": -1},
+        "magic_compass": {"name": "🧭 Волшебный компас", "effect": "Показывает ближайшую руну", "uses": 3},
+        "snow_shoes": {"name": "🎿 Снегоступы", "effect": "-50% затрат выносливости", "uses": 20},
+        "reindeer_whistle": {"name": "📯 Свисток оленя", "effect": "Вызывает оленя-помощника", "uses": 1},
+        "ice_pick": {"name": "⛏️ Ледоруб", "effect": "Ломает лёд и замёрзшие двери", "uses": 8},
+        "potion_of_warmth": {"name": "🧪 Зелье тепла", "effect": "+30 температуры", "uses": 1},
+        "magic_cookie": {"name": "🍪 Волшебное печенье", "effect": "+20 настроения", "uses": 1}
+    }
+
+    def use_quest_item(quest_data, item_name):
+        """Использование предмета в квесте"""
+        if item_name in quest_data["inventory"] and quest_data["inventory"][item_name] > 0:
+            item = QUEST_ITEMS.get(item_name, {})
+            
+            if item_name == "torch":
+                quest_data["inventory"][item_name] -= 1
+                return f"🔥 Факел освещает путь! Осталось использований: {quest_data['inventory'][item_name]}"
+            
+            elif item_name == "potion_of_warmth":
+                quest_data["inventory"][item_name] -= 1
+                quest_data["temperature"] += 30
+                return "🧪 Ты выпил зелье тепла! Теперь ты не чувствуешь холода!"
+            
+            elif item_name == "magic_cookie":
+                quest_data["inventory"][item_name] -= 1
+                quest_data["mood"] = min(10, quest_data["mood"] + 2)
+                return "🍪 Волшебное печенье поднимает настроение! М-м-м, вкусно!"
+        
+        return "❌ Нельзя использовать этот предмет сейчас!"
+
+    # 🎪 РАСШИРЕННАЯ ФУНКЦИЯ ОТОБРАЖЕНИЯ КВЕСТА
+    async def show_enhanced_quest(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Улучшенное отображение состояния квеста"""
+        quest_data = context.user_data.get("frozen_runes", {})
+        
+        # Обновляем погоду
+        weather_warning = update_quest_weather(quest_data)
+        
+        # Создаем строку инвентаря
+        inventory_text = ""
+        for item, count in quest_data["inventory"].items():
+            if count > 0:
+                item_info = QUEST_ITEMS.get(item, {"name": item})
+                inventory_text += f"  • {item_info['name']}: {count}\n"
+        
+        # Текущая локация
+        current_loc = QUEST_LOCATIONS.get(quest_data.get("current_location", "forest_entrance"), {})
+        
+        # Эмодзи настроения
+        mood_emojis = ["😭", "😢", "😔", "😐", "🙂", "😊", "😄", "🤩", "🎉", "🌈"]
+        mood_emoji = mood_emojis[min(9, max(0, quest_data["mood"] - 1))]
+        
+        # Эмодзи температуры
+        if quest_data["temperature"] < -15:
+            temp_emoji = "🧊"
+        elif quest_data["temperature"] < 0:
+            temp_emoji = "❄️"
+        elif quest_data["temperature"] < 10:
+            temp_emoji = "🌡️"
+        else:
+            temp_emoji = "🔥"
+        
+        quest_text = f"""
+    🏔️ <b>КВЕСТ: ПОИСК ЗАМЕРЗШИХ РУН</b> 🏔️
+
+    <b>{current_loc.get('name', 'Неизвестная локация')}</b>
+    📖 {current_loc.get('description', '')}
+
+    {'⚠️ <b>' + weather_warning + '</b>' if weather_warning else ''}
+
+    📊 <b>Состояние:</b>
+    ❤️ Здоровье: {quest_data['health']}/120
+    🔵 Мана: {quest_data['mana']}/80
+    💪 Выносливость: {quest_data['stamina']}/100
+    {mood_emoji} Настроение: {quest_data['mood']}/10
+    {temp_emoji} Температура: {quest_data['temperature']}°C
+
+    🌤️ <b>Погода:</b> {quest_data['weather']}
+    ⏰ <b>Время:</b> {quest_data['time_of_day']}
+
+    ✨ <b>Прогресс:</b> {quest_data['runes_found']}/{quest_data['total_runes']} рун
+    🧩 <b>Головоломок решено:</b> {quest_data['puzzles_solved']}
+    🎭 <b>Шуток рассказано:</b> {quest_data['jokes_told']}
+
+    🎒 <b>Инвентарь:</b>
+    {inventory_text if inventory_text else '  Пусто... 🎁'}
+
+    👥 <b>Встречено персонажей:</b>
+    {chr(10).join(f'  • {npc}' for npc in quest_data['npc_met'][-3:]) if quest_data['npc_met'] else '  Пока никого...'}
+
+    <b>Что будешь делать?</b>
+    """
+        
+        return quest_text
     
     quest_data = context.user_data["frozen_runes"]
     
-    if quest_data["step"] == 1:
-        story = f"""
-❄️ <b>КВЕСТ: Поиск замерзших рун</b>
-
-В Зачарованном лесу спрятаны {quest_data['total_runes']} магических рун, содержащих новогоднюю магию. 
-Без них праздник не будет по-настоящему волшебным!
-
-❤️ <b>Здоровье:</b> {quest_data['health']}/100
-🔵 <b>Мана:</b> {quest_data['mana']}/100
-✨ <b>Найдено рун:</b> {quest_data['runes_found']}/{quest_data['total_runes']}
-
-Ты стоишь на развилке трёх тропинок. Куда пойдёшь?
-"""
+        # Генерация случайного события
+    event_chance = random.random()
+    event_text = ""
+    
+    if event_chance < 0.15:
+        events = [
+            "🦊 Мимо пробежала пушистая лисица! Она махнула хвостом и исчезла в сугробе.",
+            "🎶 Ты слышишь далёкое пение эльфов... Или это просто ветер?",
+            "🍪 Нашёл печенье в кармане! Откуда оно здесь? +5 к настроению!",
+            "❄️ Снежинка упала тебе на нос и растаяла со смешным писком!",
+            "🎁 Под ёлкой блеснуло что-то интересное... Может, подойти посмотреть?"
+        ]
+        event_text = f"\n🎭 <b>Случайное событие:</b> {random.choice(events)}\n"
+    
+    # Шутка от NPC (каждые 3 шага)
+    if quest_data.get("step", 1) % 3 == 0 and quest_data["jokes_told"] < 5:
+        npc = random.choice(list(QUEST_NPCS.values()))
+        joke = random.choice(npc["jokes"])
+        event_text += f"\n🎪 <b>{npc['name']} шутит:</b> {joke}\n"
+        quest_data["jokes_told"] += 1
+        quest_data["mood"] = min(10, quest_data["mood"] + 1)
+    
+    # Получаем текст квеста
+    quest_text = await show_enhanced_quest(update, context)
+    
+    # Добавляем событие
+    quest_text += event_text
+    
+    # Разные действия в зависимости от локации
+    current_loc = quest_data["current_location"]
+    keyboard = []
+    
+    if current_loc == "forest_entrance":
         keyboard = [
-            [InlineKeyboardButton("🔼 Идти по заснеженной тропе", callback_data="quest_action_path")],
-            [InlineKeyboardButton("🔽 Спуститься в ледяную пещеру", callback_data="quest_action_cave")],
-            [InlineKeyboardButton("🌲 Исследовать древний лес", callback_data="quest_action_forest")],
-            [InlineKeyboardButton("🏃‍♂️ Вернуться в меню квестов", callback_data="quest_menu")]
+            [InlineKeyboardButton("🌲 Исследовать лес", callback_data="quest_explore_forest"),
+             InlineKeyboardButton("🗺️ Изучить карту", callback_data="quest_study_map")],
+            [InlineKeyboardButton("🔥 Развести костёр (-10 выносливости)", callback_data="quest_make_fire")],
+            [InlineKeyboardButton("🎤 Спеть новогоднюю песню", callback_data="quest_sing_song")],
+            [InlineKeyboardButton("🦌 Позвать оленя", callback_data="quest_call_reindeer")],
+            [InlineKeyboardButton("🧩 Решить головоломку", callback_data="quest_puzzle_riddle")],
+            [InlineKeyboardButton("🏃‍♂️ Выйти из квеста", callback_data="quest_complete_frozen")]
         ]
     
-    elif quest_data["step"] == 2:
-        story = f"""
-❄️ <b>КВЕСТ: Поиск замерзших рун</b>
-
-Ты нашёл {quest_data['runes_found']} из {quest_data['total_runes']} рун!
-Продолжай поиски.
-
-❤️ <b>Здоровье:</b> {quest_data['health']}/100
-🔵 <b>Мана:</b> {quest_data['mana']}/100
-✨ <b>Найдено рун:</b> {quest_data['runes_found']}/{quest_data['total_runes']}
-
-Что будешь делать дальше?
-"""
+    elif current_loc == "frozen_lake":
         keyboard = [
-            [InlineKeyboardButton("🔍 Тщательно обыскать местность", callback_data="quest_action_search")],
-            [InlineKeyboardButton("🎯 Использовать магический компас", callback_data="quest_action_compass")],
-            [InlineKeyboardButton("✨ Применить магию поиска", callback_data="quest_action_magic")],
-            [InlineKeyboardButton("🏃‍♂️ Завершить поиски", callback_data="quest_complete_frozen")]
+            [InlineKeyboardButton("⛸️ Кататься на коньках (-15 выносливости)", callback_data="quest_ice_skate"),
+             InlineKeyboardButton("🎣 Рыбачить", callback_data="quest_fishing")],
+            [InlineKeyboardButton("🔍 Искать руну подо льдом", callback_data="quest_search_under_ice")],
+            [InlineKeyboardButton("❄️ Слепить ледяную скульптуру", callback_data="quest_ice_sculpture")],
+            [InlineKeyboardButton("⚠️ Проверить толщину льда", callback_data="quest_check_ice")],
+            [InlineKeyboardButton("🏃‍♂️ Вернуться в лес", callback_data="quest_return_forest")]
         ]
     
-    await q.edit_message_text(story, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
+    # Добавляем кнопки использования предметов
+    if any(count > 0 for count in quest_data["inventory"].values()):
+        keyboard.append([InlineKeyboardButton("🎒 Использовать предмет", callback_data="quest_use_item_menu")])
+    
+    keyboard.append([InlineKeyboardButton("🏔️ Другие квесты", callback_data="quest_menu")])
+    
+    await q.edit_message_text(quest_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
 
 # Квест: Спасение подарков
 async def quest_gift_rescue(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2948,7 +3291,6 @@ async def quest_lost_reindeer(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     await q.edit_message_text(story, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
 
-# Обработчик действий в квестах
 async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -2957,137 +3299,244 @@ async def quest_action_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     user = update.effective_user
     init_user_data(user.id)
     
-    # Определяем текущий активный квест
-    active_quest = None
-    quest_keys = ["frozen_runes", "gift_rescue", "lost_reindeer"]
-    for quest in quest_keys:
-        if quest in context.user_data:
-            active_quest = quest
-            break
-    
-    if not active_quest:
-        await q.edit_message_text(
-            "❌ Активный квест не найден!",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🏔️ К квестам", callback_data="quest_menu")],
-                [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
-            ])
-        )
-        return
-    
-    quest_data = context.user_data[active_quest]
-    result = ""
+    # Получаем данные квеста
+    quest_data = context.user_data.get("frozen_runes", {})
+    result_text = ""
     points_earned = 0
     exp_earned = 0
     
-    # Обработка завершения квеста
-    if "complete" in action:
-        if active_quest == "frozen_runes":
-            runes_found = quest_data.get("runes_found", 0)
-            points_earned = runes_found * 50
-            exp_earned = runes_found * 20
-            
-            if runes_found >= 2:
-                add_achievement(user.id, "frozen_runes_completed")
-                user_data[str(user.id)]["quests_finished"] = user_data[str(user.id)].get("quests_finished", 0) + 1
-                result = f"🏆 <b>Квест завершён!</b>\n\nНайдено рун: {runes_found}/3\n+{points_earned} очков, +{exp_earned} опыта"
-            else:
-                result = f"❌ Найдено слишком мало рун: {runes_found}/3\nПопробуй ещё раз!"
-        
-        elif active_quest == "gift_rescue":
-            gifts_rescued = quest_data.get("gifts_rescued", 0)
-            points_earned = gifts_rescued * 60
-            exp_earned = gifts_rescued * 25
-            
-            if gifts_rescued >= 3:
-                add_achievement(user.id, "gift_rescue_completed")
-                user_data[str(user.id)]["quests_finished"] = user_data[str(user.id)].get("quests_finished", 0) + 1
-                result = f"🎉 <b>Миссия выполнена!</b>\n\nСпасено подарков: {gifts_rescued}/5\n+{points_earned} очков, +{exp_earned} опыта"
-            else:
-                result = f"❌ Спасено слишком мало подарков: {gifts_rescued}/5\nПопробуй ещё раз!"
-        
-        elif active_quest == "lost_reindeer":
-            reindeer_found = quest_data.get("reindeer_found", 0)
-            points_earned = reindeer_found * 55
-            exp_earned = reindeer_found * 22
-            
-            if reindeer_found >= 2:
-                add_achievement(user.id, "lost_reindeer_completed")
-                user_data[str(user.id)]["quests_finished"] = user_data[str(user.id)].get("quests_finished", 0) + 1
-                result = f"🦌 <b>Поиски завершены!</b>\n\nНайдено оленей: {reindeer_found}/3\n+{points_earned} очков, +{exp_earned} опыта"
-            else:
-                result = f"❌ Найдено слишком мало оленей: {reindeer_found}/3\nПопробуй ещё раз!"
-        
-        # Удаляем данные квеста
-        if active_quest in context.user_data:
-            del context.user_data[active_quest]
+    # НОВЫЕ ДЕЙСТВИЯ:
     
-    else:
-        # Простые действия с наградами
-        success_chance = random.random()
-        
-        if "search" in action or "find" in action or "collect" in action:
-            if success_chance > 0.4:
-                if active_quest == "frozen_runes":
-                    quest_data["runes_found"] = min(quest_data["runes_found"] + 1, quest_data["total_runes"])
-                elif active_quest == "gift_rescue":
-                    quest_data["gifts_rescued"] = min(quest_data["gifts_rescued"] + 1, quest_data["total_gifts"])
-                elif active_quest == "lost_reindeer":
-                    quest_data["reindeer_found"] = min(quest_data["reindeer_found"] + 1, quest_data["total_reindeer"])
-                
-                points_earned = random.randint(20, 50)
-                exp_earned = random.randint(10, 25)
-                result = f"✅ Успех! +{points_earned} очков, +{exp_earned} опыта"
-            else:
-                points_earned = random.randint(-10, -5)
-                result = f"❌ Ничего не найдено. {points_earned} очков"
-        
-        elif "magic" in action or "spell" in action:
-            if success_chance > 0.6:
-                points_earned = random.randint(40, 70)
-                exp_earned = random.randint(20, 35)
-                result = f"✨ Магия сработала! +{points_earned} очков, +{exp_earned} опыта"
-            else:
-                points_earned = random.randint(-15, -5)
-                result = f"💫 Заклинание не подействовало. {points_earned} очков"
-        
+    # Исследование леса
+    if action == "explore_forest":
+        discoveries = [
+            ("🌰 Нашёл шишку! Не очень полезно, но симпатично.", 5, 0),
+            ("🍄 Волшебный гриб! Говорят, он исполняет желания... или это галлюцинации?", 15, 10),
+            ("🦉 Сова подмигнула тебе! Это хороший знак!", 10, 5),
+            ("💎 Блестящий камень! Может быть, это начало руны?", 20, 15),
+            ("📜 Старая карта! На ней отмечены тайные тропы.", 25, 20)
+        ]
+        discovery, points, exp = random.choice(discoveries)
+        quest_data["stamina"] = max(0, quest_data["stamina"] - 8)
+        result_text = discovery
+        points_earned = points
+        exp_earned = exp
+    
+    # Разведение костра
+    elif action == "make_fire":
+        if quest_data["stamina"] >= 10:
+            quest_data["stamina"] -= 10
+            quest_data["temperature"] += 20
+            quest_data["mood"] = min(10, quest_data["mood"] + 2)
+            fire_jokes = [
+                "🔥 Кострёк горит, печенек просит!",
+                "🔥 Пламя танцует новогодний танец!",
+                "🔥 Теперь можно поджарить маршмеллоу! Если бы он был...",
+                "🔥 Огонь такой тёплый, что даже снежинки тают от зависти!"
+            ]
+            result_text = f"{random.choice(fire_jokes)} Температура повысилась!"
+            points_earned = 15
         else:
-            # Дефолтное действие
-            if success_chance > 0.3:
-                points_earned = random.randint(15, 40)
-                exp_earned = random.randint(8, 20)
-                result = f"👍 Хороший выбор! +{points_earned} очков, +{exp_earned} опыта"
-            else:
-                points_earned = random.randint(-5, -1)
-                result = f"👎 Не самый удачный ход. {points_earned} очков"
+            result_text = "💤 Слишком устал, чтобы разводить костёр!"
+    
+    # Пение песни
+    elif action == "sing_song":
+        songs = [
+            ("🎤 'В лесу родилась ёлочка...' Эхо подпевает!", 20, 2),
+            ("🎤 'Jingle Bells' на русском с акцентом! Снегири оценили!", 25, 3),
+            ("🎤 Импровизированная рэп-баллада о морозе! Лёд трескается от ритма!", 30, 4),
+            ("🎤 Ты забыл слова и просто мычишь... Но с душой!", 10, 1)
+        ]
+        song, points, mood = random.choice(songs)
+        result_text = song
+        points_earned = points
+        quest_data["mood"] = min(10, quest_data["mood"] + mood)
+    
+    # Поиск руны подо льдом
+    elif action == "search_under_ice":
+        if random.random() < 0.4:  # 40% шанс найти руну
+            quest_data["runes_found"] += 1
+            rune_names = ["Руна Снега", "Руна Льда", "Руна Холода", "Руна Зимы"]
+            rune_found = random.choice(rune_names)
+            quest_data["runes_info"][rune_found] = "Найдена подо льдом замёрзшего озера"
+            result_text = f"✨ ТЫ НАШЁЛ РУНУ! {rune_found}!\n+50 очков, +30 опыта!"
+            points_earned = 50
+            exp_earned = 30
+            quest_data["mood"] = min(10, quest_data["mood"] + 3)
+        else:
+            funny_fails = [
+                "🐟 Поймал рыбу вместо руны! Она сказала: 'Привет!'",
+                "⛸️ Поскользнулся и сел в сугроб! Зато весело!",
+                "🧊 Лёд оказался толще, чем твоя зимняя куртка!",
+                "🎣 Удочка сломалась! Но ты нашёл старую жвачку... Замёрзшую."
+            ]
+            result_text = random.choice(funny_fails)
+            quest_data["stamina"] -= 15
+    
+    # Головоломка
+    elif action == "puzzle_riddle":
+        await quest_mini_game(update, context, "riddle")
+        return
+    
+    # Использование предмета
+    elif action == "use_item_menu":
+        # Показываем меню предметов
+        keyboard = []
+        for item, count in quest_data["inventory"].items():
+            if count > 0:
+                item_info = QUEST_ITEMS.get(item, {"name": item})
+                keyboard.append([InlineKeyboardButton(
+                    f"{item_info['name']} (x{count})", 
+                    callback_data=f"quest_use_{item}"
+                )])
         
-        # Переход на следующий шаг
-        if "step" in quest_data:
-            quest_data["step"] += 1
+        keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="quest_frozen_runes")])
+        
+        await q.edit_message_text(
+            "🎒 <b>Выбери предмет для использования:</b>",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+    
+    elif action.startswith("use_"):
+        item_name = action.replace("use_", "")
+        result_text = use_quest_item(quest_data, item_name)
+    
+    # Перемещение между локациями
+    elif action == "go_to_lake":
+        quest_data["current_location"] = "frozen_lake"
+        quest_data["stamina"] -= 20
+        travel_texts = [
+            "❄️ Ты пробираешься к замёрзшему озеру... Снег хрустит под ногами.",
+            "🏔️ Долгий путь к озеру! Зато вид открывается потрясающий!",
+            "🎿 Благодаря снегоступам ты быстро добрался до озера!"
+        ]
+        result_text = random.choice(travel_texts)
+    
+    # ... добавьте другие действия по аналогии
+    
+    # Обновление шага
+    quest_data["step"] += 1
     
     # Начисление наград
-    if points_earned != 0:
+    if points_earned > 0:
         add_santa_points(user.id, points_earned, context)
-    if exp_earned != 0:
+    if exp_earned > 0:
         add_reindeer_exp(user.id, exp_earned)
     
-    # Показываем результат
-    keyboard = []
-    if active_quest in context.user_data and not ("complete" in action):
-        if active_quest == "frozen_runes":
-            keyboard.append([InlineKeyboardButton("🔄 Продолжить квест", callback_data="quest_frozen_runes")])
-        elif active_quest == "gift_rescue":
-            keyboard.append([InlineKeyboardButton("🔄 Продолжить квест", callback_data="quest_gift_rescue")])
-        elif active_quest == "lost_reindeer":
-            keyboard.append([InlineKeyboardButton("🔄 Продолжить квест", callback_data="quest_lost_reindeer")])
+    # Проверка завершения квеста
+    if quest_data["runes_found"] >= quest_data["total_runes"]:
+        await complete_enhanced_quest(update, context)
+        return
     
-    keyboard.extend([
-        [InlineKeyboardButton("🏔️ Выбрать другой квест", callback_data="quest_menu")],
+    # Показываем результат и обновлённый квест
+    quest_text = await show_enhanced_quest(update, context)
+    full_text = f"🎭 <b>Результат:</b>\n\n{result_text}\n\n{quest_text}"
+    
+    keyboard = [
+        [InlineKeyboardButton("🔄 Продолжить квест", callback_data="quest_frozen_runes")],
+        [InlineKeyboardButton("🏔️ Другие квесты", callback_data="quest_menu")],
         [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
-    ])
+    ]
     
-    await q.edit_message_text(
-        f"🏔️ <b>Результат:</b>\n\n{result}",
+    await q.edit_message_text(full_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
+
+# 🏆 ФУНКЦИЯ ЗАВЕРШЕНИЯ УЛУЧШЕННОГО КВЕСТА
+async def complete_enhanced_quest(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    quest_data = context.user_data.get("frozen_runes", {})
+    
+    # Бонусы за разные достижения
+    base_points = quest_data["runes_found"] * 60
+    bonus_points = 0
+    
+    # Бонус за настроение
+    if quest_data["mood"] >= 8:
+        bonus_points += 50
+        mood_bonus = "🌈 Отличное настроение! +50 очков"
+    elif quest_data["mood"] >= 5:
+        bonus_points += 25
+        mood_bonus = "😊 Хорошее настроение! +25 очков"
+    else:
+        mood_bonus = "😐 Можно было и повеселее..."
+    
+    # Бонус за шутки
+    joke_bonus = quest_data["jokes_told"] * 10
+    bonus_points += joke_bonus
+    
+    # Бонус за головоломки
+    puzzle_bonus = quest_data["puzzles_solved"] * 15
+    bonus_points += puzzle_bonus
+    
+    # Бонус за выживание
+    if quest_data["health"] > 50:
+        survival_bonus = 30
+        bonus_points += survival_bonus
+        survival_text = f"❤️ Отличное здоровье! +{survival_bonus} очков"
+    else:
+        survival_text = "💔 Нужно быть осторожнее..."
+    
+    total_points = base_points + bonus_points
+    total_exp = quest_data["runes_found"] * 25 + bonus_points // 2
+    
+    # Добавляем достижения
+    if quest_data["runes_found"] >= 5:
+        add_achievement(user.id, "rune_master")
+    if quest_data["jokes_told"] >= 5:
+        add_achievement(user.id, "quest_comedian")
+    if quest_data["puzzles_solved"] >= 3:
+        add_achievement(user.id, "puzzle_solver")
+    
+    user_data[str(user.id)]["quests_finished"] = user_data[str(user.id)].get("quests_finished", 0) + 1
+    
+    # Формируем текст завершения
+    completion_text = f"""
+🏆 <b>КВЕСТ ЗАВЕРШЁН!</b> 🏆
+
+✨ <b>Ты нашёл {quest_data['runes_found']} из {quest_data['total_runes']} рун!</b>
+
+📊 <b>Статистика квеста:</b>
+• Пройдено шагов: {quest_data['step']}
+• Настроение в конце: {quest_data['mood']}/10
+• Рассказано шуток: {quest_data['jokes_told']}
+• Решено головоломок: {quest_data['puzzles_solved']}
+• Встречено персонажей: {len(quest_data['npc_met'])}
+• Выжил с здоровьем: {quest_data['health']}/120
+
+💰 <b>Награды:</b>
+• Базовые очки: {base_points}
+• {mood_bonus}
+• Бонус за шутки: +{joke_bonus} очков
+• Бонус за головоломки: +{puzzle_bonus} очков
+• {survival_text}
+
+🎁 <b>Итого получено:</b>
+• {total_points} очков Санты 🎅
+• {total_exp} опыта оленёнку 🦌
+• Достижение: {'Искатель рун' if quest_data['runes_found'] >= 3 else 'Новичок'}
+
+🎄 <b>Руны вернули новогоднюю магию в лес!</b>
+Теперь праздник будет по-настоящему волшебным!
+"""
+    
+    # Начисляем награды
+    add_santa_points(user.id, total_points, context)
+    add_reindeer_exp(user.id, total_exp)
+    
+    # Удаляем данные квеста
+    if "frozen_runes" in context.user_data:
+        del context.user_data["frozen_runes"]
+    
+    keyboard = [
+        [InlineKeyboardButton("🎮 Другие квесты", callback_data="quest_menu")],
+        [InlineKeyboardButton("🏆 Мой профиль", callback_data="profile")],
+        [InlineKeyboardButton("🎪 Мини-игры", callback_data="mini_games")],
+        [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+    ]
+    
+    await update.callback_query.edit_message_text(
+        completion_text,
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -3470,8 +3919,7 @@ def enhanced_menu_keyboard(admin=False):
          InlineKeyboardButton("❄️ Снегопад", callback_data="snowfall")],
         [InlineKeyboardButton("🎁 Идеи подарков", callback_data="gift_ideas_menu"),
          InlineKeyboardButton("🏔️ Квесты", callback_data="quest_menu")],
-        [InlineKeyboardButton("👤 Профиль", callback_data="profile"),
-         InlineKeyboardButton("🏆 Топ игроков", callback_data="top_players")],
+        [InlineKeyboardButton("👤 Профиль", callback_data="profile")],  # Убрана вторая кнопка
         [InlineKeyboardButton("📋 Участники комнаты", callback_data="room_members"),
          InlineKeyboardButton("🏆 Топ комнаты", callback_data="room_top_players")],
         [InlineKeyboardButton("🎅 Присоединиться к комнате", callback_data="join_room_menu")],
@@ -3705,8 +4153,6 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
         elif q.data == "profile":
             await enhanced_profile(update, context)
             
-        elif q.data == "top_players":
-            await show_top_players(update, context)
             
         elif q.data == "room_members":
             await show_room_members(update, context)
@@ -3837,7 +4283,6 @@ def run_bot():
     app.add_handler(CommandHandler("join_room", join_room))
     app.add_handler(CommandHandler("start_game", start_game_admin))
     app.add_handler(CommandHandler("snowfall", animated_snowfall))
-    app.add_handler(CommandHandler("top", show_top_players))
     app.add_handler(CommandHandler("profile", enhanced_profile))
     app.add_handler(CommandHandler("myid", lambda u, c: u.message.reply_text(f"🆔 Твой ID: {u.effective_user.id}")))
     app.add_handler(CommandHandler("points", lambda u, c: u.message.reply_text(f"🎅 У тебя {user_data.get(str(u.effective_user.id), {}).get('santa_points', 0)} очков Санты!")))
