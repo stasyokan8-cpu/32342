@@ -956,6 +956,10 @@ async def game_handlers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif q.data == "quiz_start":
         await start_quiz(update, context)
         
+    # СНАЧАЛА проверяем quiz_finish_now, потом другие quiz_
+    elif q.data == "quiz_finish_now":
+        await finish_quiz(update, context)
+        
     elif q.data.startswith("battle_"):
         await battle_action_handler(update, context)
         
@@ -964,9 +968,6 @@ async def game_handlers(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await quiz_next_handler(update, context)
         elif q.data.startswith("quiz_answer_"):
             await quiz_answer_handler(update, context)
-    
-    elif q.data == "quiz_finish_now":
-        await finish_quiz(update, context)
     
 # Игра: Битва с Гринчем
 async def game_grinch_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2952,7 +2953,10 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
             
         elif q.data == "quiz_top":
             await show_quiz_top(update, context)
-            
+
+        elif q.data == "quiz_finish_now":
+            await finish_quiz(update, context)        
+        
         elif q.data == "room_members":
             await show_room_members(update, context)
             
