@@ -2737,7 +2737,22 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
                     [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
                 ])
             )
-
+            
+        elif q.data == "admin_view_distribution_menu":
+            await admin_view_distribution_menu(update, context)
+            
+        elif q.data.startswith("view_dist_"):
+            await admin_view_distribution(update, context)
+            
+        elif q.data.startswith("reset_game_"):
+            await admin_reset_game(update, context)
+            
+        elif q.data.startswith("export_room_"):
+            await admin_export_room(update, context)
+            
+        elif q.data == "admin_search_user":
+            await admin_search_user(update, context)
+            
         elif q.data.startswith("gift_theme_"):
             theme = q.data.replace("gift_theme_", "")
             if theme == "random":
@@ -2910,21 +2925,7 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
         else:
             # Обработка игровых callback'ов
             await game_handlers(update, context)
-        
-        elif q.data == "admin_view_distribution_menu":
-            await admin_view_distribution_menu(update, context)
-            
-        elif q.data.startswith("view_dist_"):
-            await admin_view_distribution(update, context)
-            
-        elif q.data.startswith("reset_game_"):
-            await admin_reset_game(update, context)
-            
-        elif q.data.startswith("export_room_"):
-            await admin_export_room(update, context)
-            
-        elif q.data == "admin_search_user":
-            await admin_search_user(update, context)
+       
         
     except Exception as e:
         print(f"Ошибка в обработчике callback: {e}")
