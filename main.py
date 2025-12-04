@@ -2105,10 +2105,6 @@ async def send_333_congrats_audio(update: Update, context: ContextTypes.DEFAULT_
                 performer="Secret Santa Bot",
                 parse_mode='HTML'
             )
-    
-    # Очищаем данные квиза из контекста
-    if "quiz" in context.user_data:
-        del context.user_data["quiz"]
 
 async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
