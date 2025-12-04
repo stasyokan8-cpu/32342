@@ -616,6 +616,11 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Выбери действие в меню:",
         reply_markup=enhanced_menu_keyboard(admin)
     )
+    
+       # Обработка поиска пользователя
+    if context.user_data.get("search_mode"):
+        await handle_search(update, context)
+        return
 
 # -------------------------------------------------------------------
 # 🏠 РАЗДЕЛ: УПРАВЛЕНИЕ КОМНАТАМИ
@@ -2221,6 +2226,349 @@ async def admin_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
     )
 
+
+# -------------------------------------------------------------------
+# 📋 АДМИН: ПРОСМОТР РАСПРЕДЕЛЕНИЯ И ПОЖЕЛАНИЙ
+# -------------------------------------------------------------------
+async def admin_view_distribution_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Меню просмотра распределения и пожеланий"""
+    if not is_admin(update):
+        await update.callback_query.answer("🚫 Доступ запрещён", show_alert=True)
+        return
+    
+    await update.callback_query.answer()
+    
+    data = load_data()
+    
+    if not data["rooms"]:
+        await update.callback_query.edit_message_text(
+            "🚫 Нет созданных комнат!",
+            reply_markup=back_to_menu_keyboard(True)
+        )
+        return
+    
+    keyboard = []
+    for code, room in data["rooms"].items():
+        status = "✅ Запущена" if room["game_started"] else "⏳ Ожидание"
+        members_count = len(room["members"])
+        keyboard.append([InlineKeyboardButton(
+            f"📊 {code} ({members_count} участ.) - {status}", 
+            callback_data=f"view_dist_{code}"
+        )])
+    
+    keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="back_menu")])
+    
+    await update.callback_query.edit_message_text(
+        "📋 <b>Просмотр распределения и пожеланий</b>\n\n"
+        "Выбери комнату для просмотра:",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def admin_view_distribution(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать распределение и пожелания в комнате"""
+    q = update.callback_query
+    await q.answer()
+    
+    if not is_admin(update):
+        await q.answer("🚫 Доступ запрещён", show_alert=True)
+        return
+    
+    code = q.data.replace("view_dist_", "")
+    data = load_data()
+    
+    if code not in data["rooms"]:
+        await q.edit_message_text("🚫 Комната не найдена!")
+        return
+    
+    room = data["rooms"][code]
+    
+    # Формируем текст с пожеланиями
+    wishes_text = "<b>🎁 ПОЖЕЛАНИЯ ВСЕХ УЧАСТНИКОВ:</b>\n\n"
+    for i, (user_id, member) in enumerate(room["members"].items(), 1):
+        wish = member["wish"] if member["wish"] else "❌ Не указано"
+        username = f"@{member['username']}" if member["username"] and member["username"] != "без username" else "без username"
+        wishes_text += f"<b>{i}. {member['name']} ({username}):</b>\n{wish}\n\n"
+    
+    # Формируем текст с распределением (если игра запущена)
+    distribution_text = ""
+    if room["game_started"] and room["assign"]:
+        distribution_text = "<b>🎯 РАСПРЕДЕЛЕНИЕ ПОДАРКОВ:</b>\n\n"
+        for giver_id, receiver_id in room["assign"].items():
+            giver = room["members"][giver_id]["name"]
+            receiver = room["members"][receiver_id]["name"]
+            giver_username = room["members"][giver_id]["username"]
+            receiver_username = room["members"][receiver_id]["username"]
+            
+            giver_display = f"@{giver_username}" if giver_username and giver_username != "без username" else "без username"
+            receiver_display = f"@{receiver_username}" if receiver_username and receiver_username != "без username" else "без username"
+            
+            distribution_text += f"🎅 <b>{giver}</b> ({giver_display})\n   ↓ дарит подарок ↓\n🎁 <b>{receiver}</b> ({receiver_display})\n\n"
+    
+    full_text = f"""
+<b>📋 КОМНАТА: {code}</b>
+
+<b>Статус:</b> {'✅ Игра запущена' if room['game_started'] else '⏳ Ожидание запуска'}
+<b>Участников:</b> {len(room['members'])}
+<b>Создатель:</b> {room['creator']}
+<b>Создана:</b> {datetime.fromisoformat(room['created_at']).strftime('%d.%m.%Y %H:%M')}
+
+{'-'*40}
+
+{wishes_text}
+
+{distribution_text if distribution_text else ''}
+"""
+    
+    keyboard = [
+        [InlineKeyboardButton("📤 Экспорт в файл", callback_data=f"export_room_{code}")],
+        [InlineKeyboardButton("🔄 Сбросить игру", callback_data=f"reset_game_{code}")],
+        [InlineKeyboardButton("🗑️ Удалить комнату", callback_data=f"delete_{code}")],
+        [InlineKeyboardButton("⬅️ Назад к списку", callback_data="admin_view_distribution_menu")]
+    ]
+    
+    await q.edit_message_text(
+        full_text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def admin_reset_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Сбросить игру в комнате (очистить распределение)"""
+    q = update.callback_query
+    await q.answer()
+    
+    if not is_admin(update):
+        await q.answer("🚫 Доступ запрещён", show_alert=True)
+        return
+    
+    code = q.data.replace("reset_game_", "")
+    data = load_data()
+    
+    if code not in data["rooms"]:
+        await q.edit_message_text("🚫 Комната не найдена!")
+        return
+    
+    room = data["rooms"][code]
+    
+    if not room["game_started"]:
+        await q.answer("❌ Игра ещё не запущена!", show_alert=True)
+        return
+    
+    # Сбрасываем игру
+    room["game_started"] = False
+    room["assign"] = {}
+    save_data(data)
+    
+    # Уведомляем участников
+    for member_id in room["members"]:
+        try:
+            await context.bot.send_message(
+                member_id,
+                f"🔄 <b>Игра в комнате {code} сброшена администратором!</b>\n\n"
+                f"Распределение подарков было отменено. "
+                f"Ожидайте нового запуска игры от организатора.",
+                parse_mode='HTML'
+            )
+        except:
+            pass
+    
+    await q.edit_message_text(
+        f"🔄 <b>Игра в комнате {code} успешно сброшена!</b>\n\n"
+        f"<b>Участников:</b> {len(room['members'])}\n"
+        f"<b>Статус:</b> Ожидание запуска\n\n"
+        f"Все участники получили уведомление.",
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("📋 Просмотр комнаты", callback_data=f"view_dist_{code}")],
+            [InlineKeyboardButton("🚀 Запустить игру", callback_data=f"start_{code}")],
+            [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+        ])
+    )
+
+async def admin_export_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Экспорт данных комнаты в текстовый файл"""
+    q = update.callback_query
+    await q.answer()
+    
+    if not is_admin(update):
+        await q.answer("🚫 Доступ запрещён", show_alert=True)
+        return
+    
+    code = q.data.replace("export_room_", "")
+    data = load_data()
+    
+    if code not in data["rooms"]:
+        await q.answer("❌ Комната не найдена!", show_alert=True)
+        return
+    
+    room = data["rooms"][code]
+    
+    # Формируем содержимое файла
+    file_content = f"ДАННЫЕ КОМНАТЫ ТАЙНОГО САНТЫ\n"
+    file_content += f"Код комнаты: {code}\n"
+    file_content += f"Статус: {'Игра запущена' if room['game_started'] else 'Ожидание'}\n"
+    file_content += f"Участников: {len(room['members'])}\n"
+    file_content += f"Создана: {datetime.fromisoformat(room['created_at']).strftime('%d.%m.%Y %H:%M')}\n"
+    file_content += f"\n{'='*50}\n\n"
+    
+    # Участники и пожелания
+    file_content += "УЧАСТНИКИ И ПОЖЕЛАНИЯ:\n"
+    for i, (user_id, member) in enumerate(room["members"].items(), 1):
+        wish = member["wish"] if member["wish"] else "Не указано"
+        file_content += f"\n{i}. {member['name']} (@{member['username']})\n"
+        file_content += f"   ID: {user_id}\n"
+        file_content += f"   Пожелание: {wish}\n"
+    
+    # Распределение (если есть)
+    if room["game_started"] and room["assign"]:
+        file_content += f"\n{'='*50}\n\n"
+        file_content += "РАСПРЕДЕЛЕНИЕ ПОДАРКОВ:\n\n"
+        for giver_id, receiver_id in room["assign"].items():
+            giver = room["members"][giver_id]["name"]
+            receiver = room["members"][receiver_id]["name"]
+            file_content += f"🎅 {giver} → 🎁 {receiver}\n"
+    
+    # Сохраняем во временный файл
+    filename = f"room_{code}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt"
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(file_content)
+    
+    # Отправляем файл
+    with open(filename, "rb") as f:
+        await context.bot.send_document(
+            chat_id=update.effective_chat.id,
+            document=f,
+            filename=filename,
+            caption=f"📁 Экспорт данных комнаты {code}\n"
+                   f"👥 Участников: {len(room['members'])}\n"
+                   f"🎮 Статус: {'Игра активна' if room['game_started'] else 'Ожидание'}"
+        )
+    
+    # Удаляем временный файл
+    import os
+    os.remove(filename)
+    
+    await q.answer("✅ Файл отправлен!", show_alert=True)
+
+async def admin_search_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Поиск пользователя по имени или username"""
+    if not is_admin(update):
+        await update.callback_query.answer("🚫 Доступ запрещён", show_alert=True)
+        return
+    
+    await update.callback_query.answer()
+    
+    search_instructions = """
+🔍 <b>Поиск пользователя</b>
+
+Введи имя пользователя или его username для поиска:
+
+💡 <b>Примеры запросов:</b>
+• "Иван" - поиск по имени
+• "@username" - поиск по username
+• "Иван Петров" - поиск по полному имени
+
+Поиск осуществляется по всем пользователям бота.
+"""
+    
+    context.user_data["search_mode"] = True
+    
+    await update.callback_query.edit_message_text(
+        search_instructions,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ Отменить поиск", callback_data="back_menu")]
+        ])
+    )
+
+async def handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка поискового запроса"""
+    if not update.message or not context.user_data.get("search_mode"):
+        return
+    
+    search_query = update.message.text.strip().lower()
+    context.user_data["search_mode"] = False
+    
+    data = load_data()
+    results = []
+    
+    # Ищем по всем пользователям
+    for user_id_str, user_info in data.get("users", {}).items():
+        name = user_info.get("name", "").lower()
+        username = user_info.get("username", "").lower()
+        
+        if (search_query in name or 
+            search_query in username or 
+            (search_query.startswith("@") and search_query[1:] in username)):
+            
+            # Находим комнаты пользователя
+            user_rooms = []
+            for code, room in data.get("rooms", {}).items():
+                if user_id_str in room.get("members", {}):
+                    room_status = "активна" if room.get("game_started") else "ожидание"
+                    user_rooms.append(f"{code} ({room_status})")
+            
+            results.append({
+                "id": user_id_str,
+                "name": user_info.get("name", "Неизвестно"),
+                "username": user_info.get("username", "без username"),
+                "rooms": user_rooms,
+                "quiz_points": user_info.get("quiz_points", 0),
+                "grinch_wins": user_info.get("grinch_wins", 0)
+            })
+    
+    # Формируем результат
+    if not results:
+        result_text = f"🔍 <b>По запросу '{search_query}' ничего не найдено.</b>"
+    else:
+        result_text = f"🔍 <b>Результаты поиска '{search_query}':</b>\n\n"
+        
+        for i, user in enumerate(results, 1):
+            username_display = f"@{user['username']}" if user['username'] and user['username'] != "без username" else "без username"
+            rooms_display = ", ".join(user['rooms']) if user['rooms'] else "нет активных комнат"
+            
+            result_text += f"<b>{i}. {user['name']}</b> ({username_display})\n"
+            result_text += f"   ID: {user['id']}\n"
+            result_text += f"   Комнаты: {rooms_display}\n"
+            result_text += f"   🎓 Очков в квизе: {user['quiz_points']}\n"
+            result_text += f"   ⚔️ Побед над Гринчем: {user['grinch_wins']}\n\n"
+    
+    admin = is_admin(update)
+    await update.message.reply_text(
+        result_text,
+        parse_mode='HTML',
+        reply_markup=enhanced_menu_keyboard(admin)
+    )
+
+# -------------------------------------------------------------------
+# 🆕 ОБНОВЛЕННОЕ ГЛАВНОЕ МЕНЮ ДЛЯ АДМИНА
+# -------------------------------------------------------------------
+def enhanced_menu_keyboard(admin=False):
+    base = [
+        [InlineKeyboardButton("🎁 Ввести пожелание", callback_data="wish")],
+        [InlineKeyboardButton("🎮 Мини-игры", callback_data="mini_games"),
+         InlineKeyboardButton("🎁 Идеи подарков", callback_data="gift_ideas_menu")],
+        [InlineKeyboardButton("👤 Профиль", callback_data="profile")],
+        [InlineKeyboardButton("📋 Участники комнаты", callback_data="room_members")],
+        [InlineKeyboardButton("🎅 Присоединиться к комнате", callback_data="join_room_menu")],
+    ]
+    
+    # Добавляем кнопки админа
+    if admin:
+        base.append([InlineKeyboardButton("🏠 СОЗДАТЬ КОМНАТУ", callback_data="create_room_btn")])
+        base.extend([
+            [InlineKeyboardButton("📊 Админ: Распределение", callback_data="admin_view_distribution_menu")],
+            [InlineKeyboardButton("🔍 Админ: Поиск пользователя", callback_data="admin_search_user")],
+            [InlineKeyboardButton("🎄 Админ: Комнаты", callback_data="admin_rooms")],
+            [InlineKeyboardButton("🚀 Админ: Запуск игры", callback_data="admin_start")],
+            [InlineKeyboardButton("🗑️ Админ: Удалить комнату", callback_data="admin_delete")],
+            [InlineKeyboardButton("📢 Админ: Рассылка", callback_data="broadcast_menu")],
+            [InlineKeyboardButton("📈 Админ: Статистика", callback_data="admin_stats")],
+        ])
+    
+    return InlineKeyboardMarkup(base)
+    
 # -------------------------------------------------------------------
 # 📢 РАССЫЛКА
 # -------------------------------------------------------------------
@@ -2353,33 +2701,6 @@ async def broadcast_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "❌ Рассылка отменена.",
         reply_markup=back_to_menu_keyboard(True)
     )
-
-# -------------------------------------------------------------------
-# 🎄 ГЛАВНОЕ МЕНЮ
-# -------------------------------------------------------------------
-def enhanced_menu_keyboard(admin=False):
-    base = [
-        [InlineKeyboardButton("🎁 Ввести пожелание", callback_data="wish")],
-        [InlineKeyboardButton("🎮 Мини-игры", callback_data="mini_games"),
-         InlineKeyboardButton("🎁 Идеи подарков", callback_data="gift_ideas_menu")],
-        [InlineKeyboardButton("👤 Профиль", callback_data="profile")],
-        [InlineKeyboardButton("📋 Участники комнаты", callback_data="room_members")],
-        [InlineKeyboardButton("🎅 Присоединиться к комнате", callback_data="join_room_menu")],
-    ]
-    
-
-    # Добавляем кнопки админа
-    if admin:
-        base.append([InlineKeyboardButton("🏠 СОЗДАТЬ КОМНАТУ", callback_data="create_room_btn")])
-        base.extend([
-            [InlineKeyboardButton("🎄 Админ: Комнаты", callback_data="admin_rooms")],
-            [InlineKeyboardButton("🚀 Админ: Запуск игры", callback_data="admin_start")],
-            [InlineKeyboardButton("🗑️ Админ: Удалить комнату", callback_data="admin_delete")],
-            [InlineKeyboardButton("📢 Админ: Рассылка", callback_data="broadcast_menu")],
-            [InlineKeyboardButton("📊 Админ: Статистика", callback_data="admin_stats")],
-        ])
-    
-    return InlineKeyboardMarkup(base)
 
 # -------------------------------------------------------------------
 # 🔄 ГЛАВНЫЙ ОБРАБОТЧИК CALLBACK'ОВ
@@ -2589,7 +2910,22 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
         else:
             # Обработка игровых callback'ов
             await game_handlers(update, context)
+        
+        elif q.data == "admin_view_distribution_menu":
+            await admin_view_distribution_menu(update, context)
             
+        elif q.data.startswith("view_dist_"):
+            await admin_view_distribution(update, context)
+            
+        elif q.data.startswith("reset_game_"):
+            await admin_reset_game(update, context)
+            
+        elif q.data.startswith("export_room_"):
+            await admin_export_room(update, context)
+            
+        elif q.data == "admin_search_user":
+            await admin_search_user(update, context)
+        
     except Exception as e:
         print(f"Ошибка в обработчике callback: {e}")
         import traceback
