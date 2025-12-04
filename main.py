@@ -2014,13 +2014,47 @@ async def quiz_next_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quiz_data["current_question"] += 1
     await ask_quiz_question(update, context)
 
-async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Завершение квиза и вывод результатов"""
+    # Проверяем, есть ли данные квиза
+    if "quiz" not in context.user_data:
+        if update.callback_query:
+            await update.callback_query.answer("❌ Данные квиза не найдены. Начните заново.", show_alert=True)
+        return
+    
     quiz_data = context.user_data["quiz"]
     score = quiz_data["score"]
     total = len(quiz_data["questions"]) * 10
     
-    user = update.effective_user
+    # 🔥 ИСПРАВЛЕНИЕ: Получаем пользователя правильно
+    if update.callback_query:
+        user = update.callback_query.from_user
+    elif update.message:
+        user = update.message.from_user
+    elif update.effective_user:
+        user = update.effective_user
+    else:
+        # Если не можем получить пользователя, показываем ошибку
+        if update.callback_query:
+            await update.callback_query.edit_message_text(
+                "❌ Ошибка: не удалось определить пользователя. Попробуйте начать квиз заново.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🎮 Начать квиз", callback_data="game_quiz")]
+                ])
+            )
+        return
+    
+    # Проверяем, что user.id существует
+    if not hasattr(user, 'id') or not user.id:
+        if update.callback_query:
+            await update.callback_query.edit_message_text(
+                "❌ Ошибка: не удалось определить ID пользователя.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🎮 Начать квиз", callback_data="game_quiz")]
+                ])
+            )
+        return
+    
     init_user_data(user.id)
     
     correct_answers = sum(1 for answer in quiz_data["answers"] if answer["is_correct"])
@@ -3275,7 +3309,13 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
             await show_quiz_top(update, context)
 
         elif q.data == "quiz_finish_now":
-            await finish_quiz(update, context)        
+            await finish_quiz(update, context)   
+        
+        elif q.data == "quiz_next":
+            await quiz_next_handler(update, context)
+            
+        elif q.data.startswith("quiz_answer_"):
+            await quiz_answer_handler(update, context)
         
         elif q.data == "room_members":
             await show_room_members(update, context)
