@@ -89,7 +89,7 @@ def load_all_data():
         print(f"Ошибка загрузки данных: {e}")
         return {"rooms": {}, "users": {}}
 
-def save_all_data(data)
+def save_all_data(data):
     data["users"] = user_data
     try:
         with open(DATA_FILE, "w", encoding="utf-8") as f:
