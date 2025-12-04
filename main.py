@@ -58,6 +58,17 @@ def save_data(data):
     except Exception as e:
         print(f"Ошибка сохранения данных: {e}")
 
+def load_data_without_global():
+    """Загружает данные из файла без изменения глобальной переменной user_data"""
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data
+    except FileNotFoundError:
+        return {"rooms": {}, "users": {}}
+    except Exception as e:
+        print(f"Ошибка загрузки данных: {e}")
+        return {"rooms": {}, "users": {}}
 # -------------------------------------------------------------------
 # БАЗОВЫЕ УТИЛИТЫ
 # -------------------------------------------------------------------
@@ -953,7 +964,10 @@ async def game_handlers(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await quiz_next_handler(update, context)
         elif q.data.startswith("quiz_answer_"):
             await quiz_answer_handler(update, context)
-
+    
+    elif q.data == "quiz_finish_now":
+        await finish_quiz(update, context)
+    
 # Игра: Битва с Гринчем
 async def game_grinch_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -1753,9 +1767,17 @@ async def start_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await ask_quiz_question(update, context)
 
 async def ask_quiz_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    quiz_data = context.user_data["quiz"]
+    quiz_data = context.user_data.get("quiz")
+    
+    if not quiz_data:
+        # Если данных нет, начинаем заново
+        await update.callback_query.answer("❌ Данные квиза потеряны. Начинаем заново!", show_alert=True)
+        await start_quiz(update, context)
+        return
+    
     current_q = quiz_data["current_question"]
     
+    # Проверяем, не закончились ли вопросы
     if current_q >= len(quiz_data["questions"]):
         await finish_quiz(update, context)
         return
@@ -1769,7 +1791,7 @@ async def ask_quiz_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     progress = f"({current_q + 1}/{len(quiz_data['questions'])})"
     
     await update.callback_query.edit_message_text(
-        f"🎓 <b>Новогодний Квиз {progress}</b>\n\n"
+        f"🎓 <b>НОВОГОДНИЙ КВИЗ {progress}</b>\n\n"
         f"❓ {question_data['question']}",
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -1802,7 +1824,13 @@ async def quiz_answer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     result_text += f"\n\n💡 {question_data['fact']}"
     
-    keyboard = [[InlineKeyboardButton("➡️ Следующий вопрос", callback_data="quiz_next")]]
+    # Проверяем, был ли это последний вопрос
+    if current_q + 1 >= len(quiz_data["questions"]):
+        # Это последний вопрос - сразу завершаем
+        keyboard = [[InlineKeyboardButton("📊 Посмотреть результаты", callback_data="quiz_finish_now")]]
+    else:
+        # Ещё есть вопросы
+        keyboard = [[InlineKeyboardButton("➡️ Следующий вопрос", callback_data="quiz_next")]]
     
     await q.edit_message_text(
         result_text,
@@ -1813,11 +1841,21 @@ async def quiz_answer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def quiz_next_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
-    quiz_data = context.user_data["quiz"]
+    quiz_data = context.user_data.get("quiz")
+    if not quiz_data:
+        await update.callback_query.edit_message_text(
+            "❌ Данные квиза потеряны. Начинаем заново!",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🎯 Начать квиз", callback_data="quiz_start")]
+            ])
+        )
+        return
+    
     quiz_data["current_question"] += 1
     await ask_quiz_question(update, context)
 
 async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Завершение квиза и вывод результатов"""
     quiz_data = context.user_data["quiz"]
     score = quiz_data["score"]
     total = len(quiz_data["questions"]) * 10
@@ -1845,23 +1883,40 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Сохраняем отвеченные вопросы
     for answer in quiz_data["answers"]:
-        if answer.get("question_id") not in user_data[str(user.id)]["answered_quiz_questions"]:
-            user_data[str(user.id)]["answered_quiz_questions"].append(answer["question_id"])
+        question_id = answer.get("question_id")
+        if question_id and question_id not in user_data[str(user.id)]["answered_quiz_questions"]:
+            user_data[str(user.id)]["answered_quiz_questions"].append(question_id)
     
-    # 🔥 ВАЖНО: Сохраняем и обновляем глобальные данные
-    data = load_data()
-    data["users"] = user_data  # Обновляем пользователей в данных
-    save_data(data)
+    # 🔥 ВАЖНО: Сохраняем данные правильно
+    # Загружаем текущие данные из файла
+    file_data = load_data_without_global()
     
+    # Обновляем только данные текущего пользователя
+    file_data["users"][str(user.id)] = user_data[str(user.id)]
+    
+    # Сохраняем обратно в файл
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(file_data, f, indent=4, ensure_ascii=False)
+        print(f"✅ Данные квиза сохранены для пользователя {user.id}")
+    except Exception as e:
+        print(f"❌ Ошибка сохранения данных: {e}")
+    
+    # Формируем итоговое сообщение
     final_text = f"""
-🎓 <b>Новогодний Квиз завершён!</b>
+🎓 <b>НОВОГОДНИЙ КВИЗ ЗАВЕРШЁН!</b>
 
 {result_message}
 
-📊 <b>Твой результат:</b>
+📊 <b>ТВОЙ РЕЗУЛЬТАТ:</b>
 • Правильных ответов: {correct_answers}/{total_questions}
 • Получено очков: {score}/{total}
-• Всего очков: {user_data[str(user.id)]['quiz_points']}
+• Всего очков за все игры: {user_data[str(user.id)]['quiz_points']}
+
+🎄 <b>Статистика:</b>
+• Сыграно квизов: {user_data[str(user.id)]['total_quiz_played']}
+• Правильных ответов за всё время: {user_data[str(user.id)]['total_quiz_correct']}
+• Побед (идеальных результатов): {user_data[str(user.id)].get('quiz_wins', 0)}
 
 Хочешь попробовать ещё раз?
 """
@@ -1872,18 +1927,31 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
     ]
     
-    await update.callback_query.edit_message_text(
-        final_text,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    # Проверяем, есть ли callback_query
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            final_text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    else:
+        # На всякий случай, если нет callback_query
+        await update.message.reply_text(
+            final_text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    
+    # Очищаем данные квиза из контекста
+    if "quiz" in context.user_data:
+        del context.user_data["quiz"]
 
 async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
-        # 🔥 ВАЖНО: Загружаем АКТУАЛЬНЫЕ данные из файла
-    data = load_data()
-    users_data = data.get("users", {})  # Используем users из загруженных данных
+    # Загружаем данные из файла
+    file_data = load_data_without_global()
+    users_data = file_data.get("users", {})
     
     # Собираем статистику всех игроков
     player_stats = []
@@ -1908,7 +1976,7 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Сортируем по очкам
     player_stats.sort(key=lambda x: x["points"], reverse=True)
     
-    top_text = "🏆 <b>Топ игроков квиза</b>\n\n"
+    top_text = "🏆 <b>ТОП ИГРОКОВ КВИЗА</b>\n\n"
     
     if not player_stats:
         top_text += "Пока никто не играл в квиз. Будь первым! 🎄\n\n"
@@ -1923,20 +1991,23 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
             display_name = player["name"][:20] + "..." if len(player["name"]) > 20 else player["name"]
             username_display = f"(@{player['username']})" if player["username"] and player["username"] != "без username" else ""
             
-            top_text += f"{medal} {display_name} {username_display}\n"
-            top_text += f"   Очки: {player['points']} | Побед: {player['wins']} | Точность: {player['accuracy']:.1f}%\n\n"
+            top_text += f"{medal} <b>{display_name}</b> {username_display}\n"
+            top_text += f"   📊 Очки: {player['points']} | 🏆 Побед: {player['wins']} | 🎯 Точность: {player['accuracy']:.1f}%\n\n"
     
-    top_text += "🎮 <b>Общая статистика:</b>\n"
+    top_text += "🎮 <b>ОБЩАЯ СТАТИСТИКА:</b>\n"
     top_text += f"• Всего игроков: {len(player_stats)}\n"
     top_text += f"• Всего сыграно квизов: {sum(p['played'] for p in player_stats)}\n"
-    top_text += f"• Средняя точность: {sum(p['accuracy'] for p in player_stats) / len(player_stats) if player_stats else 0:.1f}%"
+    if player_stats:
+        top_text += f"• Средняя точность: {sum(p['accuracy'] for p in player_stats) / len(player_stats):.1f}%"
+    else:
+        top_text += "• Средняя точность: 0%"
     
     await update.callback_query.edit_message_text(
         top_text,
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🎮 Играть в квиз", callback_data="game_quiz")],
-            [InlineKeyboardButton("⬅️ Назад", callback_data="mini_games")]
+            [InlineKeyboardButton("⬅️ Назад в игры", callback_data="mini_games")]
         ])
     )
 
