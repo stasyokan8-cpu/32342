@@ -2107,7 +2107,7 @@ async def send_333_congrats_audio(update: Update, context: ContextTypes.DEFAULT_
     """Отправка музыкального файла при достижении 333 баллов"""
     try:
         # Способ 1: Отправка по URL
-        if CONGRATS_AUDIO_URL.startswith("http"):
+        if CONGRATS_AUDIO_URL.startswith("https"):
             # Если это URL
             await context.bot.send_audio(
                 chat_id=user_id,
@@ -2157,10 +2157,11 @@ async def send_333_congrats_audio(update: Update, context: ContextTypes.DEFAULT_
 async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
-    # ВАЖНО: используем load_data() для обновления глобальной переменной
-    load_data()  # Эта функция обновляет глобальную user_data
+    # 🔥 ЗАГРУЖАЕМ АКТУАЛЬНЫЕ ДАННЫЕ ИЗ ФАЙЛА
+    data = load_data_without_global()
+    users = data.get("users", {})
     
-    if not user_data:
+    if not users:
         await update.callback_query.edit_message_text(
             "🏆 <b>ТОП ИГРОКОВ КВИЗА</b>\n\n"
             "Пока никто не играл в квиз. Будь первым! 🎄",
@@ -2175,14 +2176,14 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Собираем статистику всех игроков
     player_stats = []
     
-    for user_id_str, user_info in user_data.items():
+    for user_id_str, user_info in users.items():
         quiz_points = user_info.get("quiz_points", 0)
         quiz_wins = user_info.get("quiz_wins", 0)
         total_correct = user_info.get("total_quiz_correct", 0)
         total_played = user_info.get("total_quiz_played", 0)
         
-        # Включаем в топ всех, кто играл
-        if total_played > 0 or quiz_points > 0:
+        # Включаем в топ только тех, кто играл в квиз
+        if total_played > 0:
             accuracy = (total_correct / (total_played * 5)) * 100 if total_played > 0 else 0
             player_stats.append({
                 "id": user_id_str,
@@ -2200,7 +2201,7 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
     top_text = "🏆 <b>ТОП ИГРОКОВ КВИЗА</b>\n\n"
     
     if not player_stats:
-        top_text += "Пока никто не играл в квиз. Будь першим! 🎄\n\n"
+        top_text += "Пока никто не играл в квиз. Будь первым! 🎄\n\n"
     else:
         medals = ["🥇", "🥈", "🥉"]
         for i, player in enumerate(player_stats[:20]):  # Показываем до 20 игроков
@@ -2216,7 +2217,7 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
             top_text += f"   📊 Очки: {player['points']} | 🏆 Побед: {player['wins']} | 🎯 Точность: {player['accuracy']:.1f}%\n\n"
     
     top_text += "🎮 <b>ОБЩАЯ СТАТИСТИКА:</b>\n"
-    top_text += f"• Всего игроков: {len(player_stats)}\n"
+    top_text += f"• Всего игроков в квизе: {len(player_stats)}\n"
     top_text += f"• Всего сыграно квизов: {sum(p['played'] for p in player_stats)}\n"
     if player_stats:
         avg_accuracy = sum(p['accuracy'] for p in player_stats) / len(player_stats)
@@ -2232,7 +2233,6 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("⬅️ Назад в игры", callback_data="mini_games")]
         ])
     )
-
 # -------------------------------------------------------------------
 # 📊 РАЗДЕЛ: ПРОФИЛЬ И СТАТИСТИКА
 # -------------------------------------------------------------------
