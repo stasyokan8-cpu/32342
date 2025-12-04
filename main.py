@@ -1,5 +1,5 @@
-# 🔥🎄 SUPER-DELUXE SECRET SANTA BOT v3.4 🎄🔥
-# ПОЛНОСТЬЮ РАБОЧАЯ ВЕРСИЯ: Исправлены все баги, работают квесты и мини-игры
+# 🔥🎄 SUPER-DELUXE SECRET SANTA BOT v3.5 🎄🔥
+# Упрощенная версия: удалены лишние мини-игры, оставлены только квиз и битва с Гринчем
 
 import json
 import random
@@ -15,36 +15,20 @@ from telegram.ext import (
     Application, CommandHandler, MessageHandler,
     CallbackQueryHandler, ContextTypes, filters
 )
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 # Конфигурация для Replit
 TOKEN = os.environ.get("TELEGRAM_TOKEN", "8299215190:AAEqLfMOTjywx_jOeT-Kv1I5oKdgbdWzN9Y")
 ADMIN_USERNAME = "BeellyKid"
 DATA_FILE = "santa_data.json"
 
-print(f"🎄 Запуск Secret Santa Bot v3.4 на Replit...")
+print(f"🎄 Запуск Secret Santa Bot v3.5 на Replit...")
 print(f"Токен: {'✅ Установлен' if TOKEN else '❌ НЕ НАЙДЕН!'}")
 
 # Проверка токена
 if not TOKEN:
     print("❌ ОШИБКА: TELEGRAM_TOKEN не установлен!")
     print("💡 Установите переменную окружения TELEGRAM_TOKEN в Replit Secrets")
-    print("💡 Или введите токен вручную ниже...")
-    # Попробуем получить токен из файла .env если есть
-    try:
-        with open('.env', 'r') as f:
-            for line in f:
-                if line.startswith('TELEGRAM_TOKEN='):
-                    TOKEN = line.strip().split('=', 1)[1]
-                    print(f"✅ Токен найден в .env файле")
-    except:
-        pass
-    
-    if not TOKEN:
-        # Попытка ввести токен вручную (только для локального тестирования)
-        print("🚫 Бот не может запуститься без токена!")
-        sys.exit(1)
+    sys.exit(1)
 
 user_data = {}
 
@@ -58,7 +42,6 @@ def load_data():
             user_data = data["users"]
             return data
     except FileNotFoundError:
-        # Создаем новый файл данных если не существует
         default_data = {"rooms": {}, "users": {}}
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(default_data, f, indent=4, ensure_ascii=False)
@@ -92,96 +75,28 @@ def back_to_menu_keyboard(admin=False):
     ])
 
 # -------------------------------------------------------------------
-# СИСТЕМА ОЧКОВ И ОЛЕНЕЙ
+# СИСТЕМА ДАННЫХ ПОЛЬЗОВАТЕЛЯ (без очков)
 # -------------------------------------------------------------------
 def init_user_data(user_id):
     if str(user_id) not in user_data:
         user_data[str(user_id)] = {
-            "reindeer_level": 0,
-            "reindeer_exp": 0,
-            "santa_points": 100,
             "achievements": [],
             "games_won": 0,
-            "quests_finished": 0,
-            "reindeer_skin": "default",
             "grinch_fights": 0,
             "grinch_wins": 0,
-            "rare_items": [],
-            "unlocked_reindeers": ["default"],
-            "current_reindeer": "default",
-            "checkers_wins": 0,
-            "checkers_losses": 0,
+            "quiz_points": 0,
             "quiz_wins": 0,
-            "total_points": 100,
             "name": "",
             "username": "",
             "answered_quiz_questions": [],
-            "last_checkers_win": None,
-            "quest_progress": {}
+            "total_quiz_correct": 0,
+            "total_quiz_played": 0
         }
-
-def add_santa_points(user_id, points, context: ContextTypes.DEFAULT_TYPE = None):
-    init_user_data(user_id)
-    # ИСПРАВЛЕНО: заменил user.id на user_id
-    user_data[str(user_id)]["santa_points"] = max(0, user_data[str(user_id)]["santa_points"] + points)
-    user_data[str(user_id)]["total_points"] = max(0, user_data[str(user_id)]["total_points"] + points)
-    
-    if context and abs(points) >= 50:
-        try:
-            context.bot.send_message(
-                user_id,
-                f"🎅 {'Получено' if points > 0 else 'Потеряно'} {abs(points)} очков Санты!"
-            )
-        except:
-            pass
-
-def add_reindeer_exp(user_id, amount):
-    init_user_data(user_id)
-    user_data[str(user_id)]["reindeer_exp"] += amount
-    
-    current_level = user_data[str(user_id)]["reindeer_level"]
-    exp_needed = (current_level + 1) * 100
-    
-    if user_data[str(user_id)]["reindeer_exp"] >= exp_needed and current_level < 5:
-        user_data[str(user_id)]["reindeer_level"] += 1
-        user_data[str(user_id)]["reindeer_exp"] = 0
-        
-        new_skin = None
-        evolution_chance = random.random()
-        
-        if current_level + 1 == 3:
-            if evolution_chance < 0.1:
-                new_skin = "rainbow"
-            elif evolution_chance < 0.02:
-                new_skin = "ice_spirit"
-        elif current_level + 1 == 4:
-            if evolution_chance < 0.08:
-                new_skin = "golden"
-            elif evolution_chance < 0.015:
-                new_skin = "crystal"
-        elif current_level + 1 == 5:
-            if evolution_chance < 0.05:
-                new_skin = "cosmic"
-            elif evolution_chance < 0.01:
-                new_skin = "phantom"
-        
-        if new_skin:
-            user_data[str(user_id)]["reindeer_skin"] = new_skin
-            user_data[str(user_id)]["unlocked_reindeers"].append(new_skin)
-            add_achievement(user_id, f"{new_skin}_reindeer")
-        
-        if current_level + 1 == 5:
-            add_achievement(user_id, "reindeer_master")
-            
-    data = load_data()
-    data["users"] = user_data
-    save_data(data)
 
 def add_achievement(user_id, achievement_key):
     init_user_data(user_id)
-    if achievement_key not in user_data[str(user_id)]["achievements"]:
-        user_data[str(user_id)]["achievements"].append(achievement_key)
-        add_santa_points(user_id, 50)
+    if achievement_key not in user_data[str(user.id)]["achievements"]:
+        user_data[str(user.id)]["achievements"].append(achievement_key)
     
     data = load_data()
     data["users"] = user_data
@@ -221,50 +136,6 @@ async def gift_ideas_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-async def gift_personalized_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.answer()
-    
-    # Получаем сохранённые параметры
-    gift_params = context.user_data.get("gift_params", {})
-    
-    recipient = gift_params.get("recipient", "не выбран")
-    occasion = gift_params.get("occasion", "не выбран")
-    budget = gift_params.get("budget", "не выбран")
-    
-    if budget == "0":
-        budget = "любой"
-    
-    menu_text = f"""
-🎭 <b>ПЕРСОНАЛИЗИРОВАННЫЙ ПОДАРОК</b>
-
-Выбери параметры для поиска идеального подарка:
-
-👤 <b>Получатель:</b> {recipient}
-🎉 <b>Повод:</b> {occasion}
-💰 <b>Бюджет:</b> {budget}{'₽' if budget != 'любой' and budget != 'не выбран' else ''}
-
-💡 <b>Совет:</b> Чем точнее параметры, тем лучше результат!
-"""
-    
-    keyboard = [
-        [InlineKeyboardButton("👤 Выбрать получателя", callback_data="gift_select_recipient")],
-        [InlineKeyboardButton("🎉 Выбрать повод", callback_data="gift_select_occasion")],
-        [InlineKeyboardButton("💰 Указать бюджет", callback_data="gift_select_budget")],
-        [InlineKeyboardButton("🎲 Случайная персонализация", callback_data="gift_random_personalized")],
-    ]
-    
-    # Добавляем кнопку генерации, если есть хотя бы один параметр
-    if recipient != "не выбран" or occasion != "не выбран" or budget != "не выбран":
-        keyboard.append([InlineKeyboardButton("🔍 Сгенерировать с этими параметрами", callback_data="gift_generate_personalized")])
-    
-    keyboard.append([InlineKeyboardButton("⬅️ Назад к идеям", callback_data="gift_ideas_menu")])
-    
-    await update.callback_query.edit_message_text(
-        menu_text,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-    
 async def gift_themes_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
@@ -351,23 +222,11 @@ def generate_personalized_gift_idea(recipient_type=None, occasion=None, max_pric
     
     # Расширенная база данных подарков
     EXPANDED_CATEGORIES = {
-        # Существующие категории расширены
         "💻 Техника и гаджеты": {
             "items": [
                 {"name": "Умная колонка с голосовым помощником", "price_range": "2000-5000", "recipient": "взрослый", "occasion": "любой"},
                 {"name": "Беспроводные наушники с шумоподавлением", "price_range": "3000-15000", "recipient": "взрослый", "occasion": "любой"},
                 {"name": "Портативная колонка для душа", "price_range": "1000-3000", "recipient": "взрослый", "occasion": "день рождения"},
-                {"name": "Робот-пылесос с Wi-Fi", "price_range": "10000-30000", "recipient": "семья", "occasion": "новоселье"},
-                {"name": "Фитнес-браслет с пульсометром", "price_range": "1500-5000", "recipient": "спортсмен", "occasion": "любой"},
-                {"name": "Электронная фоторамка", "price_range": "2000-5000", "recipient": "пожилой", "occasion": "день памяти"},
-                {"name": "Внешний аккумулятор 20000 mAh", "price_range": "1500-4000", "recipient": "путешественник", "occasion": "отпуск"},
-                {"name": "Умный будильник-симулятор рассвета", "price_range": "3000-7000", "recipient": "взрослый", "occasion": "любой"},
-                {"name": "Умный термос с подогревом", "price_range": "3000-7000", "recipient": "водитель", "occasion": "зима"},
-                {"name": "Проектор для фильмов под открытым небом", "price_range": "8000-20000", "recipient": "киноман", "occasion": "отпуск"},
-                {"name": "Электронная книга с водонепроницаемым корпусом", "price_range": "4000-10000", "recipient": "читатель", "occasion": "пляж"},
-                {"name": "Умная розетка с голосовым управлением", "price_range": "1500-3500", "recipient": "технолюб", "occasion": "новоселье"},
-                {"name": "Беспроводная клавиатура для планшета", "price_range": "2000-5000", "recipient": "студент", "occasion": "1 сентября"},
-                {"name": "Виртуальные очки для смартфона", "price_range": "1000-3000", "recipient": "геймер", "occasion": "день рождения"},
             ],
             "description": "Современные устройства для комфорта и продуктивности"
         },
@@ -377,16 +236,6 @@ def generate_personalized_gift_idea(recipient_type=None, occasion=None, max_pric
                 {"name": "Набор для каллиграфии с золотыми чернилами", "price_range": "2000-6000", "recipient": "творческий", "occasion": "любой"},
                 {"name": "3D-ручка с цветными пластиками", "price_range": "1500-5000", "recipient": "ребенок", "occasion": "день рождения"},
                 {"name": "Набор для вышивания портрета по фото", "price_range": "3000-8000", "recipient": "рукодельница", "occasion": "юбилей"},
-                {"name": "Кисти для рисования из натурального ворса", "price_range": "1000-5000", "recipient": "художник", "occasion": "любой"},
-                {"name": "Гончарный круг электрический мини", "price_range": "5000-15000", "recipient": "взрослый", "occasion": "хобби"},
-                {"name": "Набор для создания духов", "price_range": "3000-7000", "recipient": "женщина", "occasion": "8 марта"},
-                {"name": "Конструктор металлический 3000 деталей", "price_range": "4000-9000", "recipient": "мужчина", "occasion": "23 февраля"},
-                {"name": "Набор для создания свечей из соевого воска", "price_range": "2500-6000", "recipient": "рукодельница", "occasion": "хобби"},
-                {"name": "Электронный конструктор Arduino", "price_range": "4000-12000", "recipient": "программист", "occasion": "день рождения"},
-                {"name": "Набор для валяния игрушек из шерсти", "price_range": "2000-5000", "recipient": "творческий", "occasion": "зима"},
-                {"name": "Гравёр для создания узоров на металле", "price_range": "3000-8000", "recipient": "мастер", "occasion": "любой"},
-                {"name": "Набор для создания мозаики", "price_range": "1500-4000", "recipient": "ребенок", "occasion": "развивающий"},
-                {"name": "Лепка из полимерной глины", "price_range": "1000-3000", "recipient": "художник", "occasion": "творчество"},
             ],
             "description": "Для развития талантов и приятного времяпрепровождения"
         },
@@ -396,23 +245,15 @@ def generate_personalized_gift_idea(recipient_type=None, occasion=None, max_pric
                 {"name": "Умный светильник с RGB подсветкой", "price_range": "2000-6000", "recipient": "молодежь", "occasion": "новоселье"},
                 {"name": "Электрическая грелка в виде игрушки", "price_range": "1500-3500", "recipient": "женщина", "occasion": "холодный сезон"},
                 {"name": "Набор ароматических свечей ручной работы", "price_range": "1000-4000", "recipient": "взрослый", "occasion": "рождество"},
-                {"name": "Умная кофеварка с таймером", "price_range": "5000-15000", "recipient": "кофеман", "occasion": "день рождения"},
-                {"name": "Органайзер для косметики с подсветкой", "price_range": "2000-5000", "recipient": "женщина", "occasion": "любой"},
-                {"name": "Массажная подушка с прогревом", "price_range": "3000-7000", "recipient": "пожилой", "occasion": "день здоровья"},
-                {"name": "Бamboo-подставка для растений", "price_range": "1000-3000", "recipient": "садовод", "occasion": "весна"},
             ],
             "description": "Вещи для создания атмосферы комфорта и тепла"
         },
         
-        # Новые категории
         "👕 Мода и стиль": {
             "items": [
                 {"name": "Кашемировый шарф с монограммой", "price_range": "3000-8000", "recipient": "стильный", "occasion": "зима"},
                 {"name": "Кожаный ремень с гравировкой", "price_range": "2000-5000", "recipient": "мужчина", "occasion": "день рождения"},
                 {"name": "Шелковый платок с ручной росписью", "price_range": "1500-4000", "recipient": "женщина", "occasion": "8 марта"},
-                {"name": "Дизайнерские носки с принтом", "price_range": "500-1500", "recipient": "друг", "occasion": "смешной подарок"},
-                {"name": "Экологичная сумка-шопер", "price_range": "1000-2500", "recipient": "эко-активист", "occasion": "любой"},
-                {"name": "Перчатки touchscreen с подогревом", "price_range": "1500-3500", "recipient": "взрослый", "occasion": "зима"},
             ],
             "description": "Аксессуары для завершения образа"
         },
@@ -422,95 +263,8 @@ def generate_personalized_gift_idea(recipient_type=None, occasion=None, max_pric
                 {"name": "Подписка на онлайн-курс по интересам", "price_range": "2000-10000", "recipient": "студент", "occasion": "выпускной"},
                 {"name": "Электронная книга с подпиской", "price_range": "5000-12000", "recipient": "читатель", "occasion": "день рождения"},
                 {"name": "Настольная игра для развития логики", "price_range": "1500-4000", "recipient": "семья", "occasion": "вечер игр"},
-                {"name": "Конструктор для изучения программирования", "price_range": "3000-8000", "recipient": "ребенок", "occasion": "1 сентября"},
-                {"name": "Мастер-класс по кулинарии онлайн", "price_range": "2000-5000", "recipient": "гурман", "occasion": "любой"},
-                {"name": "Годовой абонемент в библиотеку", "price_range": "1000-3000", "recipient": "книголюб", "occasion": "любой"},
             ],
             "description": "Инвестиции в знания и личностный рост"
-        },
-        
-        "🎮 Развлечения и игры": {
-            "items": [
-                {"name": "Набор для настольного тенниса", "price_range": "1500-4000", "recipient": "активный", "occasion": "отпуск"},
-                {"name": "VR-очки для смартфона", "price_range": "1000-3000", "recipient": "гик", "occasion": "день рождения"},
-                {"name": "Костюм для косплея", "price_range": "3000-10000", "recipient": "анимешник", "occasion": "конвент"},
-                {"name": "Набор покерный профессиональный", "price_range": "2000-6000", "recipient": "друзья", "occasion": "вечеринка"},
-                {"name": "Кино-викторина с дисками", "price_range": "1500-3500", "recipient": "киноман", "occasion": "вечер кино"},
-                {"name": "Набор для жонглирования светящимися мячами", "price_range": "800-2000", "recipient": "ребенок", "occasion": "лето"},
-            ],
-            "description": "Для веселья и активного отдыха"
-        },
-        
-        "🌿 Здоровье и спорт": {
-            "items": [
-                {"name": "Массажный пистолет для мышц", "price_range": "4000-12000", "recipient": "спортсмен", "occasion": "любой"},
-                {"name": "Йога-мат премиум класса", "price_range": "2000-5000", "recipient": "йог", "occasion": "новый год"},
-                {"name": "Умная бутылка для воды с напоминанием", "price_range": "1500-3500", "recipient": "зож", "occasion": "любой"},
-                {"name": "Набор эфирных масел для медитации", "price_range": "1000-3000", "recipient": "медитирующий", "occasion": "день спокойствия"},
-                {"name": "Фитнес-резинки разных сопротивлений", "price_range": "500-1500", "recipient": "начинающий", "occasion": "1 января"},
-                {"name": "Скейтборд круизер для города", "price_range": "3000-7000", "recipient": "молодежь", "occasion": "лето"},
-            ],
-            "description": "Для поддержания физической формы и wellbeing"
-        },
-        
-        "🍳 Кулинария и гастрономия": {
-            "items": [
-                {"name": "Сырная тарелка с деликатесами", "price_range": "2000-5000", "recipient": "гурман", "occasion": "встреча гостей"},
-                {"name": "Набор для фондю электрический", "price_range": "3000-7000", "recipient": "семья", "occasion": "новый год"},
-                {"name": "Книга рецептов от шеф-повара", "price_range": "1000-3000", "recipient": "кулинар", "occasion": "любой"},
-                {"name": "Набор японских ножей", "price_range": "5000-15000", "recipient": "повар", "occasion": "день рождения"},
-                {"name": "Корзина с фермерскими продуктами", "price_range": "1500-4000", "recipient": "зож", "occasion": "любой"},
-                {"name": "Кофейная капсульная машина", "price_range": "5000-20000", "recipient": "кофеман", "occasion": "новоселье"},
-            ],
-            "description": "Для истинных ценителей вкусной еды и напитков"
-        },
-        
-        "🛠 DIY и инструменты": {
-            "items": [
-                {"name": "Универсальный мультитул Leatherman", "price_range": "5000-15000", "recipient": "мужчина", "occasion": "23 февраля"},
-                {"name": "Набор качественных отверток", "price_range": "1500-4000", "recipient": "хозяин", "occasion": "новоселье"},
-                {"name": "Электрический лобзик", "price_range": "3000-8000", "recipient": "мастер", "occasion": "хобби"},
-                {"name": "Набор для резьбы по дереву", "price_range": "2000-6000", "recipient": "резчик", "occasion": "творчество"},
-                {"name": "Многофункциональный степлер", "price_range": "1000-3000", "recipient": "офисный", "occasion": "работа"},
-                {"name": "Измеритель уровня лазерный", "price_range": "3000-7000", "recipient": "строитель", "occasion": "профессиональный"},
-            ],
-            "description": "Инструменты для мастеров и умельцев"
-        },
-
-        "🎵 Музыка и звук": {
-            "items": [
-                {"name": "Мини-синтезатор KORG", "price_range": "4000-10000", "recipient": "музыкант", "occasion": "творчество"},
-                {"name": "Качественный метроном", "price_range": "1000-3000", "recipient": "ученик", "occasion": "обучение"},
-                {"name": "Набор музыкальных инструментов для детей", "price_range": "2000-5000", "recipient": "ребенок", "occasion": "развитие"},
-                {"name": "Цифровая гитара-тренажёр", "price_range": "5000-12000", "recipient": "гитарист", "occasion": "практика"},
-                {"name": "Студийные наушники", "price_range": "3000-8000", "recipient": "звукорежиссер", "occasion": "работа"},
-                {"name": "Портативный караоке-микрофон", "price_range": "1500-4000", "recipient": "весельчак", "occasion": "вечеринка"},
-            ],
-            "description": "Для ценителей звука и музыки"
-        },
-
-        "🧳 Эко и осознанное потребление": {
-            "items": [
-                {"name": "Набор многоразовых эко-сумок", "price_range": "500-2000", "recipient": "экоактивист", "occasion": "любой"},
-                {"name": "Бамбуковая зубная щётка", "price_range": "300-1000", "recipient": "зож", "occasion": "здоровье"},
-                {"name": "Многоразовые восковые салфетки", "price_range": "800-2500", "recipient": "хозяйка", "occasion": "кухня"},
-                {"name": "Эко-набор для пикника", "price_range": "2000-5000", "recipient": "семья", "occasion": "отпуск"},
-                {"name": "Компостер для кухни", "price_range": "1500-4000", "recipient": "садовод", "occasion": "дом"},
-                {"name": "Набор для раздельного сбора мусора", "price_range": "1000-3000", "recipient": "ответственный", "occasion": "новоселье"},
-            ],
-            "description": "Экологичные решения для повседневной жизни"
-        },       
-
-        "✈️ Путешествия и приключения": {
-            "items": [
-                {"name": "Рюкзак-трансформер для путешествий", "price_range": "3000-8000", "recipient": "путешественник", "occasion": "отпуск"},
-                {"name": "Водонепроницаемый чехол для документов", "price_range": "500-1500", "recipient": "турист", "occasion": "любой"},
-                {"name": "Билеты на интересное событие в другом городе", "price_range": "5000-20000", "recipient": "парень/девушка", "occasion": "годовщина"},
-                {"name": "Карта мира для отметок посещенных стран", "price_range": "1500-4000", "recipient": "мечтатель", "occasion": "новоселье"},
-                {"name": "Набор travel-size косметики", "price_range": "1000-2500", "recipient": "часто летающий", "occasion": "командировка"},
-                {"name": "Книга '100 мест, которые нужно увидеть'", "price_range": "800-2000", "recipient": "романтик", "occasion": "день рождения"},
-            ],
-            "description": "Для тех, кто мечтает о новых горизонтах"
         }
     }
     
@@ -520,12 +274,7 @@ def generate_personalized_gift_idea(recipient_type=None, occasion=None, max_pric
         "женщина": ["женщина", "взрослый", "стильный", "рукодельница", "зож", "гурман", "книголюб", "романтик"],
         "ребенок": ["ребенок", "начинающий", "молодежь", "студент"],
         "семья": ["семья", "взрослый", "друзья"],
-        "пожилой": ["пожилой", "взрослый", "читатель"],
-        "друг": ["друг", "взрослый", "молодежь", "гик"],
-        "коллега": ["взрослый", "стильный", "кулинар"],
-        "любой": ["взрослый", "мужчина", "женщина", "ребенок", "семья", "пожилой", "друг", "коллега", 
-                 "стильный", "спортсмен", "рукодельница", "зож", "гурман", "книголюб", "романтик", 
-                 "путешественник", "кофеман", "кулинар", "гик", "йог", "творческий", "эко-активист"]
+        "любой": ["взрослый", "мужчина", "женщина", "ребенок", "семья", "пожилой", "друг", "коллеga"]
     }
     
     # Фильтрация по поводу
@@ -534,12 +283,7 @@ def generate_personalized_gift_idea(recipient_type=None, occasion=None, max_pric
         "новый год": ["новый год", "рождество", "зима", "холодный сезон", "любой"],
         "8 марта": ["8 марта", "весна", "женский день", "любой"],
         "23 февраля": ["23 февраля", "мужской день", "любой"],
-        "годовщина": ["годовщина", "романтичный", "любой"],
-        "новоселье": ["новоселье", "любой", "дом", "уют"],
-        "выпускной": ["выпускной", "1 сентября", "образование", "любой"],
-        "любой": ["любой", "день рождения", "новый год", "8 марта", "23 февраля", 
-                 "годовщина", "новоселье", "выпускной", "отпуск", "лето", "зима", 
-                 "весна", "хобби", "вечеринка", "встреча гостей", "командировка"]
+        "любой": ["любой", "день рождения", "новый год", "8 марта", "23 февраля", "годовщина", "новоселье"]
     }
     
     # Конвертация бюджета в числовой диапазон
@@ -597,23 +341,6 @@ def generate_personalized_gift_idea(recipient_type=None, occasion=None, max_pric
     else:
         budget = "💎 Люкс от 10000₽"
     
-    # Дополнительные рекомендации
-    extras = []
-    current_hour = datetime.now().hour
-    
-    if current_hour < 12:
-        extras.append("☀️ Отличный подарок для утреннего сюрприза!")
-    elif current_hour < 18:
-        extras.append("🌤 Идеально для дневного вручения")
-    else:
-        extras.append("🌙 Вечерний подарок создаст особую атмосферу")
-    
-    if "зима" in item.get("occasion", "").lower() or "холодный" in item.get("occasion", "").lower():
-        extras.append("❄️ Особенно актуально в холодное время года")
-    
-    if "лето" in item.get("occasion", "").lower():
-        extras.append("🌞 Идеально для летнего сезона")
-    
     # Формирование результата
     result = f"""
 {category_name}
@@ -625,9 +352,6 @@ def generate_personalized_gift_idea(recipient_type=None, occasion=None, max_pric
 👤 Подходит для: {item.get('recipient', 'взрослого').title()}
 🎉 Идеально для: {item.get('occasion', 'любого повода').title()}
     """
-    
-    if extras:
-        result += "\n💡 " + " | ".join(extras)
     
     return result
 
@@ -674,10 +398,6 @@ def emergency_gift_idea(budget_limit=2000, time_limit="сегодня"):
         {"name": "Букет цветов с шоколадом", "category": "🌹 Романтика", "budget": "1000-3000"},
         {"name": "Книга-бестселлер с автографом", "category": "📚 Литература", "budget": "500-1500"},
         {"name": "Набор крафтового пива/чая", "category": "🍻 Для друга", "budget": "800-2000"},
-        {"name": "Сертификат на СПА-процедуры", "category": "🧖‍♀️ Релакс", "budget": "1500-5000"},
-        {"name": "Билеты в кино/театр", "category": "🎭 Развлечения", "budget": "1000-4000"},
-        {"name": "Именная кружка с фото", "category": "☕️ Персонализированное", "budget": "500-1500"},
-        {"name": "Коробка сладостей премиум", "category": "🍫 Сладкое", "budget": "1000-3000"},
     ]
     
     filtered = [g for g in urgent_gifts 
@@ -721,18 +441,6 @@ def get_gift_combinations():
             "items": ["Крутая футболка", "Настольная игра", "Бутылка хорошего вина", "Прикольные носки"],
             "total": "3000-6000₽",
             "occasion": "День рождения"
-        },
-        {
-            "name": "❤️ Романтический вечер",
-            "items": ["Букет цветов", "Массажное масло", "Шампанское", "Шоколад ручной работы"],
-            "total": "5000-10000₽",
-            "occasion": "Годовщина"
-        },
-        {
-            "name": "👨‍👩‍👧‍👦 Семейный набор",
-            "items": ["Набор для пикника", "Фотоальбом", "Настольная игра для всех", "Домашние тапочки каждому"],
-            "total": "6000-12000₽",
-            "occasion": "Любой семейный праздник"
         }
     ]
     
@@ -774,8 +482,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🎁 <b>Что можно делать в боте:</b>
 • Создавать комнаты и приглашать друзей
 • Писать пожелания подарка
-• Играть в новогодние мини-игры
-• Смотреть топ игроков в своей комнате
+• Смотреть участников своей комнаты
+• Получать идеи подарков
+• Играть в квиз и битву с Гринчем
 
 <b>💡 Подсказка:</b> Используй кнопки ниже для навигации
 """
@@ -877,11 +586,9 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 room["members"][str(user.id)]["wish"] = update.message.text
                 save_data(data)
                 context.user_data["wish_mode"] = False
-                add_reindeer_exp(user.id, 10)
-                add_santa_points(user.id, 25, context)
                 
                 await update.message.reply_text(
-                    "✨ Пожелание сохранено! +25 очков Санты! 🎄",
+                    "✨ Пожелание сохранено! 🎄",
                     reply_markup=enhanced_menu_keyboard(admin)
                 )
                 return
@@ -1067,12 +774,10 @@ async def join_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "joined_at": datetime.now(timezone.utc).isoformat()
     }
     save_data(data)
-    add_reindeer_exp(u.id, 20)
-    add_santa_points(u.id, 50, context)
 
     admin = is_admin(update)
     await update.message.reply_text(
-        f"✨ <b>Ты присоединился к комнате! +50 очков Санты!</b> 🎄\n\n"
+        f"✨ <b>Ты присоединился к комнате!</b> 🎄\n\n"
         f"<b>Код комнаты:</b> <code>{code}</code>\n"
         f"<b>Участников:</b> {len(room['members'])}\n"
         f"<b>Статус:</b> {'🟢 Игра активна' if room['game_started'] else '🟡 Ожидание запуска'}\n\n"
@@ -1179,146 +884,8 @@ async def show_specific_room_members(update: Update, context: ContextTypes.DEFAU
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-async def show_room_top_players(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data = load_data()
-    user = update.effective_user
-    
-    # Для админа показываем выбор комнаты
-    if is_admin(update):
-        await admin_select_room_for_top(update, context)
-        return
-    
-    # Для обычных пользователей - их текущую комнату
-    user_room = None
-    room_code = None
-    
-    for code, room in data["rooms"].items():
-        if str(user.id) in room["members"]:
-            user_room = room
-            room_code = code
-            break
-    
-    if not user_room:
-        await update.callback_query.answer("❌ Ты не в комнате!", show_alert=True)
-        return
-    
-    await show_specific_room_top(update, context, room_code, user_room)
-
-async def admin_select_room_for_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data = load_data()
-    
-    if not data["rooms"]:
-        await update.callback_query.edit_message_text(
-            "🚫 Нет созданных комнат!",
-            reply_markup=back_to_menu_keyboard(True)
-        )
-        return
-    
-    keyboard = []
-    for code, room in data["rooms"].items():
-        keyboard.append([InlineKeyboardButton(
-            f"🏆 {code} ({len(room['members'])} участ.)", 
-            callback_data=f"room_top_{code}"
-        )])
-    
-    keyboard.append([InlineKeyboardButton("⬅️ Назад", callback_data="back_menu")])
-    
-    await update.callback_query.edit_message_text(
-        "🏆 <b>Топ игроков по комнатам</b>\n\n"
-        "Выбери комнату для просмотра топа:",
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
-async def show_specific_room_top(update: Update, context: ContextTypes.DEFAULT_TYPE, code=None, room=None):
-    if not code and update.callback_query:
-        code = update.callback_query.data.replace("room_top_", "")
-    
-    if not code:
-        return
-        
-    data = load_data()
-    if not room:
-        room = data["rooms"].get(code)
-    
-    if not room:
-        await update.callback_query.answer("Комната не найдена!", show_alert=True)
-        return
-    
-    # Собираем статистику участников комнаты
-    player_stats = []
-    
-    for user_id_str in room["members"]:
-        # Получаем данные пользователя
-        user_data_entry = user_data.get(user_id_str)
-        
-        if user_data_entry:
-            score = user_data_entry.get("santa_points", 0)
-            name = room["members"][user_id_str]["name"]
-            username = room["members"][user_id_str].get("username", "")
-            reindeer_level = user_data_entry.get("reindeer_level", 0)
-            # ИСПРАВЛЕНО: Добавляем username для отображения
-            player_stats.append((user_id_str, score, name, username, reindeer_level))
-        else:
-            # Если пользователя нет в user_data, но он в комнате
-            score = 0
-            name = room["members"][user_id_str]["name"]
-            username = room["members"][user_id_str].get("username", "")
-            reindeer_level = 0
-            player_stats.append((user_id_str, score, name, username, reindeer_level))
-    
-    # Сортируем по очкам
-    player_stats.sort(key=lambda x: x[1], reverse=True)
-    
-    top_text = f"🏆 <b>Топ игроков комнаты {code}:</b>\n\n"
-    
-    if not player_stats:
-        top_text += "В этой комнате пока нет игроков... 🎄\n\n"
-        top_text += "Пригласите друзей и начните играть!"
-    else:
-        medals = ["🥇", "🥈", "🥉"]
-        for i, (user_id, score, name, username, reindeer_level) in enumerate(player_stats):
-            if i < 3:
-                medal = medals[i]
-            else:
-                medal = f"{i+1}."
-            
-            # Форматируем эмодзи уровня
-            if reindeer_level == 0:
-                level_emoji = "🐣"
-            elif reindeer_level < 3:
-                level_emoji = "🦌" * (reindeer_level + 1)
-            else:
-                level_emoji = "🌟" * min(reindeer_level, 5)
-            
-            # ИСПРАВЛЕНО: Показываем имя и username
-            display_name = name[:20] + "..." if len(name) > 20 else name
-            username_display = f"(@{username})" if username and username != "без username" else ""
-            
-            # ИСПРАВЛЕНО: Форматируем строку с username
-            top_text += f"{medal} {display_name} {username_display} — {score} очков {level_emoji}\n"
-    
-    top_text += f"\n<b>Всего участников:</b> {len(room['members'])}"
-    top_text += f"\n<b>Статус игры:</b> {'🎮 Игра идет' if room['game_started'] else '⏳ Ожидание'}"
-    
-    # Добавляем информацию о пожеланиях
-    members_without_wish = []
-    for user_id, member in room["members"].items():
-        if not member.get("wish", ""):
-            members_without_wish.append(member['name'])
-    
-    if members_without_wish and not room["game_started"]:
-        top_text += f"\n\n⚠️ <b>Без пожеланий:</b> {', '.join(members_without_wish[:3])}"
-        if len(members_without_wish) > 3:
-            top_text += f" и ещё {len(members_without_wish) - 3}..."
-    
-    await update.callback_query.edit_message_text(
-        top_text,
-        parse_mode='HTML',
-        reply_markup=back_to_menu_keyboard(is_admin(update))
-    )
 # -------------------------------------------------------------------
-# 🎮 РАЗДЕЛ: МИНИ-ИГРЫ
+# 🎮 РАЗДЕЛ: МИНИ-ИГРЫ (только квиз и битва с Гринчем)
 # -------------------------------------------------------------------
 async def mini_game_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
@@ -1327,47 +894,29 @@ async def mini_game_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     init_user_data(user.id)
     
     games_info = f"""
-🎮 <b>Новогодние мини-игры</b>
+🎮 <b>Мини-игры</b>
 
 ✨ <b>Доступные игры:</b>
 
-🎯 <b>Угадай число</b> - Угадай число от 1 до 5
-• Победа: 25-50 очков
-• Поражение: -10-20 очков
-
-🧊 <b>Монетка судьбы</b> - Орёл или решка?
-• Орёл: +15-30 очков
-• Решка: -5-15 очков
-• Серия побед даёт достижение!
-
 ⚔️ <b>Битва с Гринчем</b> - Эпичная RPG-битва
-• Победа: 80-150 очков + опыт
-• Поражение: -30-60 очков
-• 3 победы - достижение!
+• Сразись с Гринчем, который украл Рождество!
+• Можно сбежать в любой момент
+• Уникальные типы Гринчей
+• Динамичная система боя
 
 🎓 <b>Новогодний квиз</b> - Проверь знания
 • 5 случайных вопросов
-• До 150 очков за идеальный результат
+• Набирай очки за правильные ответы
+• Смотри статистику в топе игроков
 • Интересные факты!
-
-🎲 <b>Новогодняя рулетка</b> - Испытай удачу!
-• Колесо фортуны с призами
-• От 10 до 100 очков за спин
-
-💫 <b>Твоя статистика:</b>
-• Очков Санты: {user_data[str(user.id)]['santa_points']}
-• Побед в играх: {user_data[str(user.id)]['games_won']}
-• Уровень оленя: {user_data[str(user.id)]['reindeer_level']}
 
 Выбери игру:
 """
     
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎯 Угадай число", callback_data="game_number")],
-        [InlineKeyboardButton("🧊 Монетка судьбы", callback_data="game_coin")],
-        [InlineKeyboardButton("🎲 Новогодняя рулетка", callback_data="game_roulette")],
         [InlineKeyboardButton("⚔️ Битва с Гринчем", callback_data="game_grinch")],
         [InlineKeyboardButton("🎓 Новогодний квиз", callback_data="game_quiz")],
+        [InlineKeyboardButton("📊 Топ игроков квиза", callback_data="quiz_top")],
         [InlineKeyboardButton("⬅️ Назад в меню", callback_data="back_menu")],
     ])
     await update.callback_query.edit_message_text(games_info, parse_mode='HTML', reply_markup=kb)
@@ -1376,35 +925,20 @@ async def game_handlers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
 
-    if q.data == "game_number":
-        await game_number_handler(update, context)
-        
-    elif q.data == "game_coin":
-        await game_coin_handler(update, context)
-        
-    elif q.data == "game_roulette":
-        await game_roulette_handler(update, context)
-        
-    elif q.data == "game_grinch":
+    if q.data == "game_grinch":
         await game_grinch_handler(update, context)
         
     elif q.data == "game_quiz":
         await game_quiz_handler(update, context)
         
-    elif q.data == "coin_flip":
-        await coin_flip_handler(update, context)
-        
-    elif q.data.startswith("roulette_"):
-        await roulette_spin_handler(update, context)
+    elif q.data == "quiz_top":
+        await show_quiz_top(update, context)
         
     elif q.data == "battle_start":
         await epic_grinch_battle(update, context)
         
     elif q.data == "quiz_start":
         await start_quiz(update, context)
-        
-    elif q.data.startswith("guess_"):
-        await guess_handler(update, context)
         
     elif q.data.startswith("battle_"):
         await battle_action_handler(update, context)
@@ -1414,226 +948,6 @@ async def game_handlers(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await quiz_next_handler(update, context)
         elif q.data.startswith("quiz_answer_"):
             await quiz_answer_handler(update, context)
-
-# Игра: Угадай число
-async def game_number_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    
-    user = update.effective_user
-    init_user_data(user.id)
-    
-    # Генерируем случайное число
-    secret_number = random.randint(1, 5)
-    context.user_data["guess_num"] = secret_number
-    
-    game_text = """
-🎯 <b>Угадай число!</b>
-
-Я загадал число от 1 до 5.
-У тебя одна попытка угадать!
-
-Выбери число:
-"""
-    
-    keyboard = []
-    for i in range(1, 6):
-        keyboard.append([InlineKeyboardButton(f"🔢 {i}", callback_data=f"guess_{i}")])
-    
-    keyboard.append([InlineKeyboardButton("⬅️ Назад в игры", callback_data="mini_games")])
-    
-    await q.edit_message_text(
-        game_text,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
-async def guess_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    
-    guess = int(q.data.split("_")[1])
-    real = context.user_data.get("guess_num")
-    user = update.effective_user
-    init_user_data(user.id)
-    
-    if guess == real:
-        points = random.randint(25, 50)
-        add_santa_points(user.id, points, context)
-        user_data[str(user.id)]["games_won"] += 1
-        add_reindeer_exp(user.id, 15)
-        result_text = f"🎉 <b>Верно!</b> Было число {real}. Получено {points} очков Санты!"
-    else:
-        points_lost = random.randint(10, 20)
-        add_santa_points(user.id, -points_lost, context)
-        result_text = f"❄️ <b>Не угадал!</b> Было число {real}. Потеряно {points_lost} очков."
-    
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 Играть снова", callback_data="game_number")],
-        [InlineKeyboardButton("⬅️ Назад в игры", callback_data="mini_games")]
-    ])
-    
-    await q.edit_message_text(result_text, parse_mode='HTML', reply_markup=kb)
-
-# Игра: Монетка судьбы
-async def game_coin_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    
-    game_text = """
-🧊 <b>Монетка судьбы</b>
-
-Выбери сторону монетки:
-• Орёл 🦅 - выигрыш 15-30 очков
-• Решка ❄️ - проигрыш 5-15 очков
-
-Серия из 5 побед подряд даёт достижение!
-
-Сделай свой выбор:
-"""
-    
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🦅 Орёл", callback_data="coin_flip_heads")],
-        [InlineKeyboardButton("❄️ Решка", callback_data="coin_flip_tails")],
-        [InlineKeyboardButton("⬅️ Назад в игры", callback_data="mini_games")]
-    ])
-    
-    await q.edit_message_text(game_text, parse_mode='HTML', reply_markup=kb)
-
-async def coin_flip_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    
-    user_choice = q.data.replace("coin_flip_", "")
-    user = update.effective_user
-    init_user_data(user.id)
-    
-    # Бросаем монетку
-    result = random.choice(["heads", "tails"])
-    result_emoji = "🦅" if result == "heads" else "❄️"
-    result_text = "Орёл 🦅" if result == "heads" else "Решка ❄️"
-    
-    if "coin_streak" not in context.user_data:
-        context.user_data["coin_streak"] = 0
-    
-    # Проверяем результат
-    if user_choice == result:
-        context.user_data["coin_streak"] += 1
-        points = random.randint(15, 30)
-        add_santa_points(user.id, points, context)
-        
-        if context.user_data["coin_streak"] >= 5:
-            add_achievement(user.id, "lucky_coin")
-            result_message = f"🧊 Монетка: {result_text}! +{points} очков\n\n🎉 5 побед подряд! Достижение 'Монетка Удачи'!"
-            context.user_data["coin_streak"] = 0
-        else:
-            result_message = f"🧊 Монетка: {result_text}! +{points} очков\n🔥 Серия побед: {context.user_data['coin_streak']}"
-    else:
-        points_lost = random.randint(5, 15)
-        add_santa_points(user.id, -points_lost, context)
-        context.user_data["coin_streak"] = 0
-        result_message = f"🧊 Монетка: {result_text}! Потеряно {points_lost} очков"
-    
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 Ещё раз", callback_data="game_coin")],
-        [InlineKeyboardButton("⬅️ Назад в игры", callback_data="mini_games")]
-    ])
-    
-    await q.edit_message_text(result_message, parse_mode='HTML', reply_markup=kb)
-
-# Игра: Новогодняя рулетка
-async def game_roulette_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    
-    game_text = """
-🎲 <b>Новогодняя рулетка</b>
-
-Крути колесо фортуны и выигрывай призы!
-
-<b>Возможные призы:</b>
-• 10-100 очков Санты 🎅
-• 5-50 опыта оленёнку 🦌
-• Редкий предмет ✨
-• Удача на весь день 🍀
-
-Каждый спин стоит 5 очков. Готов рискнуть?
-"""
-    
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎡 Крутить рулетку! (-5 очков)", callback_data="roulette_spin")],
-        [InlineKeyboardButton("⬅️ Назад в игры", callback_data="mini_games")]
-    ])
-    
-    await q.edit_message_text(game_text, parse_mode='HTML', reply_markup=kb)
-
-async def roulette_spin_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    
-    user = update.effective_user
-    init_user_data(user.id)
-    
-    # Проверяем, есть ли достаточно очков
-    if user_data[str(user.id)]["santa_points"] < 5:
-        await q.answer("❌ Недостаточно очков для игры!", show_alert=True)
-        return
-    
-    # Спин рулетки
-    add_santa_points(user.id, -5, context)
-    
-    # Определяем результат
-    spin_result = random.choices(
-        ["small_win", "medium_win", "big_win", "experience", "item", "jackpot"],
-        weights=[30, 25, 15, 20, 8, 2]
-    )[0]
-    
-    result_message = ""
-    
-    if spin_result == "small_win":
-        points = random.randint(10, 25)
-        add_santa_points(user.id, points, context)
-        result_message = f"🎲 <b>Малый выигрыш!</b>\n+{points} очков Санты!"
-        
-    elif spin_result == "medium_win":
-        points = random.randint(26, 50)
-        add_santa_points(user.id, points, context)
-        result_message = f"🎲 <b>Средний выигрыш!</b>\n+{points} очков Санты!"
-        
-    elif spin_result == "big_win":
-        points = random.randint(51, 100)
-        add_santa_points(user.id, points, context)
-        result_message = f"🎲 <b>Большой выигрыш!</b>\n+{points} очков Санты!"
-        
-    elif spin_result == "experience":
-        exp = random.randint(20, 50)
-        add_reindeer_exp(user.id, exp)
-        result_message = f"🎲 <b>Опыт для оленя!</b>\n+{exp} опыта оленёнку!"
-        
-    elif spin_result == "item":
-        rare_items = ["Золотой колокольчик", "Снежинка удачи", "Кристалл зимы", "Свеча желаний"]
-        item = random.choice(rare_items)
-        if item not in user_data[str(user.id)]["rare_items"]:
-            user_data[str(user.id)]["rare_items"].append(item)
-        add_santa_points(user.id, 30, context)
-        result_message = f"🎲 <b>Редкий предмет!</b>\nПолучен: {item} ✨"
-        
-    elif spin_result == "jackpot":
-        points = 200
-        add_santa_points(user.id, points, context)
-        add_achievement(user.id, "roulette_jackpot")
-        result_message = f"🎲 <b>ДЖЕКПОТ! 🎉</b>\n+{points} очков Санты!\nДостижение 'Рулетка Удачи'!"
-    
-    # Показываем анимацию вращения
-    await q.edit_message_text("🎡 Рулетка крутится...")
-    await asyncio.sleep(1)
-    
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎡 Крутить ещё раз (-5 очков)", callback_data="roulette_spin")],
-        [InlineKeyboardButton("⬅️ Назад в игры", callback_data="mini_games")]
-    ])
-    
-    await q.edit_message_text(result_message, parse_mode='HTML', reply_markup=kb)
 
 # Игра: Битва с Гринчем
 async def game_grinch_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1650,7 +964,7 @@ async def game_grinch_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 • У Гринча 120 HP
 • Выбирай атаки и защиту
 • Используй специальные умения
-• Победа даёт 80-150 очков
+• Можно сбежать в любой момент
 
 <b>💡 Советы:</b>
 • Чередуй атаку и защиту
@@ -1673,9 +987,9 @@ async def epic_grinch_battle(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     user = update.effective_user
     init_user_data(user.id)
-    user_data[str(user.id)]["grinch_fights"] += 1
+    user_data[str(user.id)]["grinch_fights"] = user_data[str(user.id)].get("grinch_fights", 0) + 1
     
-    # 5 типов Гринча (случайный выбор)
+    # Типы Гринча
     grinch_types = {
         "thief": {"name": "🎁 Вор подарков", "hp": 100, "attack": 25, "trait": "Может украсть предмет"},
         "berserk": {"name": "😠 Берсерк-Гринч", "hp": 140, "attack": 35, "trait": "Сильнее при низком HP"},
@@ -1684,13 +998,13 @@ async def epic_grinch_battle(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "trickster": {"name": "🃏 Гринч-Трикстер", "hp": 110, "attack": 22, "trait": "Наводит помехи"}
     }
     
-    grinch_type = random.choice(list(grinch_types.keys()))  # ДОБАВИТЬ ЭТУ СТРОКУ
-    grinch_data = grinch_types[grinch_type]  # ДОБАВИТЬ ЭТУ СТРОКУ
+    grinch_type = random.choice(list(grinch_types.keys()))
+    grinch_data = grinch_types[grinch_type]
     
-    # Расширенная система характеристик игрока
+    # Характеристики игрока
     player_stats = {
-        "hp": 120,
-        "max_hp": 120,
+        "hp": 100,
+        "max_hp": 100,
         "mana": 50,
         "max_mana": 50,
         "attack": random.randint(20, 30),
@@ -1698,20 +1012,21 @@ async def epic_grinch_battle(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "crit_chance": 0.15,
         "dodge_chance": 0.10,
         "special_charges": 3,
-        "rage": 0,  # Шкала ярости для супер-атак
+        "rage": 0,
         "items": {
             "potion": random.randint(1, 3),
             "bomb": random.randint(0, 2),
-            "cookie": random.randint(0, 1)  # Восстанавливает все HP
+            "cookie": random.randint(0, 1)
         },
         "statuses": {
-            "enchanted": 0,  # Усиление атаки
-            "shielded": 0,   # Защита
-            "bleeding": 0,   # Постепенный урон
-            "confused": 0    # Шанс промаха
+            "enchanted": 0,
+            "shielded": 0,
+            "bleeding": 0,
+            "confused": 0
         }
     }
     
+    # Характеристики Гринча
     grinch_stats = {
         "type": grinch_type,
         "name": grinch_data["name"],
@@ -1723,7 +1038,7 @@ async def epic_grinch_battle(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "rage_mode": False,
         "phase": 1,
         "traits": grinch_data["trait"],
-        "statuses": {},  # ДОБАВИТЬ ЭТУ СТРОКУ
+        "statuses": {},
         "abilities": {
             "steal": grinch_type == "thief",
             "magic": grinch_type == "mage",
@@ -1732,40 +1047,18 @@ async def epic_grinch_battle(update: Update, context: ContextTypes.DEFAULT_TYPE)
         }
     }
     
-    
-    # Статистика Гринча
-    grinch_stats = {
-        "type": grinch_type,
-        "name": grinch_data["name"],
-        "hp": grinch_data["hp"],
-        "max_hp": grinch_data["hp"],
-        "attack": grinch_data["attack"],
-        "defense": random.randint(12, 22),
-        "special_used": False,
-        "rage_mode": False,
-        "phase": 1,  # Фазы боя (1, 2, 3)
-        "traits": grinch_data["trait"],
-        "abilities": {
-            "steal": grinch_type == "thief",
-            "magic": grinch_type == "mage",
-            "heal": random.random() > 0.7,
-            "summon": random.random() > 0.8
-        }
-    }
-    
-    # Создаем переменные среды ДО создания battle_state
+    # Создаем переменные среды
     environment = random.choice(["Снежная буря", "Замерзшая река", "Ёлочный лес", "Пещера Гринча", "Крыша города"])
-    weather_effect = random.choice([None, "visibility_down", "attack_up", "defense_down"])
     
     context.user_data["battle_state"] = {
         "player": player_stats,
         "grinch": grinch_stats,
         "round": 1,
-        "environment": environment,  # Используем переменную
-        "weather_effect": weather_effect,  # Используем переменную
+        "environment": environment,
+        "weather_effect": None,
         "battle_log": [
             f"⚔️ <b>Начинается эпичная битва с {grinch_stats['name']}!</b>",
-            f"📍 <b>Место битвы:</b> {environment}",  # Используем переменную
+            f"📍 <b>Место битвы:</b> {environment}",
             f"🎯 <b>Особенность Гринча:</b> {grinch_stats['traits']}",
             random.choice([
                 "❄️ Гринч: 'Я украду Рождество, а потом и твой сэндвич!'",
@@ -1820,7 +1113,6 @@ async def show_battle_interface(update: Update, context: ContextTypes.DEFAULT_TY
 {player_hp_bar} {player['hp']}/{player['max_hp']} HP
 {player_mana_bar} {player['mana']}/{player['max_mana']} Мана
 ⚡ Атака: {player['attack']} 🛡 Защита: {player['defense']}
-✨ Особые умения: {player['special_charges']} 🔥 Ярость: {player['rage']}/100
 🎒 Предметы: 🧪×{player['items']['potion']} 💣×{player['items']['bomb']} 🍪×{player['items']['cookie']}
 {'📛 Статусы: ' + ' '.join(status_effects) if status_effects else ''}
 
@@ -1838,7 +1130,7 @@ async def show_battle_interface(update: Update, context: ContextTypes.DEFAULT_TY
     if battle_state["battle_log"]:
         battle_text += "\n\n📜 <b>Последние события:</b>\n" + "\n".join(battle_state['battle_log'][-3:]) + "\n"
     
-    # Разные кнопки в зависимости от фазы
+    # Кнопки действий
     keyboard = [
         [InlineKeyboardButton("⚔️ Обычная атака", callback_data="battle_attack_normal"),
          InlineKeyboardButton("💥 Сильная атака (-10 маны)", callback_data="battle_attack_strong")],
@@ -1848,9 +1140,7 @@ async def show_battle_interface(update: Update, context: ContextTypes.DEFAULT_TY
          InlineKeyboardButton("🌀 Запутать Гринча (-25 маны)", callback_data="battle_confuse")],
         [InlineKeyboardButton("🧪 Использовать зелье", callback_data="battle_item_potion"),
          InlineKeyboardButton("💣 Бросить бомбу", callback_data="battle_item_bomb")],
-        [InlineKeyboardButton("🎄 НОВОГОДНЕЕ ЧУДО! (-35 маны)", callback_data="battle_christmas_magic")],
-        [InlineKeyboardButton("🤔 Специальное действие...", callback_data="battle_special_action")],
-        [InlineKeyboardButton("🏃 Сбежать (позорно!)", callback_data="battle_flee")]
+        [InlineKeyboardButton("🏃 Сбежать", callback_data="battle_flee")]
     ]
     
     await q.edit_message_text(battle_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
@@ -1865,31 +1155,27 @@ async def battle_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
     grinch = battle_state["grinch"]
     
     battle_log = battle_state["battle_log"]
-    unexpected_events = battle_state["unexpected_events"]
     result_text = ""
     
     # Обработка побега
     if action == "flee":
         flee_chance = random.random()
-        flee_success = flee_chance > 0.6
+        flee_success = flee_chance > 0.4
         
         if flee_success:
             flee_messages = [
                 "🏃 Ты успешно сбежал, оставив Гринча в недоумении!",
                 "🚀 Используя реактивные сани, ты умчался прочь!",
-                "🎅 Ты затерялся в снежной буре... но хотя бы живой!",
-                "🦌 Олени внезапно появились и увезли тебя! (Спасибо, Рудольф!)"
+                "🎅 Ты затерялся в снежной буре... но хотя бы живой!"
             ]
-            result_text = random.choice(flee_messages) + "\n\n-25 очков Санты за трусость!"
-            add_santa_points(update.effective_user.id, -25, context)
+            result_text = random.choice(flee_messages)
             await show_battle_result(update, context, result_text)
             return
         else:
             flee_fail_messages = [
                 "🚫 Гринч заблокировал выход гирляндой!",
                 "🎄 Ты споткнулся о подарочную коробку!",
-                "🦌 Олени отказались тебе помогать!",
-                "🍪 Ты уронил печенье и отвлекся..."
+                "🦌 Олени отказались тебе помогать!"
             ]
             battle_log.append("🏃 " + random.choice(flee_fail_messages))
             # Гринч атакует за попытку побега
@@ -1921,7 +1207,6 @@ async def battle_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 player["mana"] -= 20
                 damage = calculate_damage(player, grinch, "magic")
                 grinch["hp"] -= damage
-                # Шанс наложить эффект
                 if random.random() < 0.3:
                     grinch["defense"] = max(5, grinch["defense"] - 5)
                     battle_log.append(f"✨ Магия ослабила защиту Гринча! -{damage} HP")
@@ -1958,7 +1243,6 @@ async def battle_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
     elif action == "confuse":
         if player["mana"] >= 25:
             player["mana"] -= 25
-            grinch["statuses"] = grinch.get("statuses", {})
             grinch["statuses"]["confused"] = 3
             confuse_messages = [
                 "🌀 Гринч запутался в гирляндах!",
@@ -1999,67 +1283,6 @@ async def battle_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
             player["hp"] = player["max_hp"]
             player["mana"] = player["max_mana"]
             battle_log.append("🍪 Волшебное печенье восстановило всё здоровье и ману!")
-            
-    elif action == "random":
-        # Случайное действие от игрока
-        random_actions = ["attack_normal", "attack_strong", "defend", "item_potion"]
-        action = random.choice(random_actions)
-        # Рекурсивно вызвать обработку выбранного действия
-        q.data = f"battle_{action}"
-        await battle_action_handler(update, context)
-        return
-        
-    elif action == "christmas_magic":
-        if player["mana"] >= 35:
-            player["mana"] -= 35
-            magic_effects = random.choice([
-                ("✨ Призвал эльфов-помощников!", "grinch_hp", random.randint(30, 45)),
-                ("🎄 Ёлка упала на Гринча!", "grinch_hp", random.randint(40, 60)),
-                ("🌟 Сияние Рождества ослепило Гринча!", "grinch_confuse", 3),
-                ("🦌 Олени атаковали тараном!", "grinch_hp", random.randint(35, 50))
-            ])
-            
-            battle_log.append(magic_effects[0])
-            if "grinch_hp" in magic_effects:
-                grinch["hp"] -= magic_effects[2]
-                battle_log.append(f"-{magic_effects[2]} HP Гринчу")
-            elif "grinch_confuse" in magic_effects:
-                grinch["statuses"]["confused"] = magic_effects[2]
-        else:
-            battle_log.append("🎅 Нужно больше рождественского духа (маны)!")
-    
-    elif action == "special_action":
-        special_actions = [
-            ("🤝 Попытаться договориться", 0.1),
-            ("🎤 Спеть рождественскую песню", 0.3),
-            ("🎁 Предложить подарок", 0.4),
-            ("🕺 Исполнить танец победы", 0.2)
-        ]
-        
-        chosen_action, success_chance = random.choice(special_actions)
-        
-        if random.random() < success_chance:
-            if "договориться" in chosen_action:
-                battle_log.append("🤝 Гринч задумался... и согласился на перемирие!")
-                grinch["hp"] -= 15  # Смутил Гринча
-            elif "спеть" in chosen_action:
-                battle_log.append("🎤 Гринч расплакался от твоего пения! -20 HP")
-                grinch["hp"] -= 20
-            elif "подарок" in chosen_action:
-                battle_log.append("🎁 Гринч тронут! Он ослаб на 1 ход")
-                grinch["statuses"]["touched"] = 1
-            else:
-                battle_log.append("🕺 Гринч в замешательстве от твоего танца!")
-                player["rage"] += 30
-        else:
-            fail_messages = [
-                "🤝 Гринч только рассмеялся в ответ!",
-                "🎤 У Гринча аллергия на музыку! Он разозлился",
-                "🎁 'Мне не нужны твои жалкие подарки!'",
-                "🕺 'Что это за странные движения?'"
-            ]
-            battle_log.append(random.choice(fail_messages))
-            grinch["attack"] += 5
     
     # Проверка статусов игрока
     process_player_statuses(player, battle_log)
@@ -2069,9 +1292,9 @@ async def battle_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await battle_victory(update, context, battle_log)
         return
     
-    # Ход Гринча (расширенный)
+    # Ход Гринча
     if grinch["hp"] > 0:
-        await grinch_turn(update, context, battle_log, unexpected_events)
+        await grinch_turn(update, context, battle_log)
     
     # Проверка поражения
     if player["hp"] <= 0:
@@ -2103,17 +1326,14 @@ async def battle_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
             "🦌 'Даже олени не спасут тебя теперь!'"
         ]
         battle_log.append(random.choice(desperate_moves))
-        # Гринч получает последний шанс
         grinch["hp"] += 20
         battle_log.append("💚 Гринч собрал последние силы! +20 HP")
     
     battle_state["battle_log"] = battle_log[-5:]
-    battle_state["unexpected_events"] = unexpected_events[-2:]
     
     await show_battle_interface(update, context)
 
-# Новая функция: ход Гринча
-async def grinch_turn(update: Update, context: ContextTypes.DEFAULT_TYPE, battle_log, unexpected_events):
+async def grinch_turn(update: Update, context: ContextTypes.DEFAULT_TYPE, battle_log):
     battle_state = context.user_data["battle_state"]
     player = battle_state["player"]
     grinch = battle_state["grinch"]
@@ -2135,9 +1355,7 @@ async def grinch_turn(update: Update, context: ContextTypes.DEFAULT_TYPE, battle
             grinch["statuses"]["confused"] -= 1
             return
     
-    # Выбор атаки Гринча в зависимости от типа
-    grinch_attacks = []
-    
+    # Выбор атаки Гринча
     if grinch["type"] == "thief" and random.random() > 0.7:
         if player["items"]["potion"] > 0:
             player["items"]["potion"] -= 1
@@ -2145,7 +1363,9 @@ async def grinch_turn(update: Update, context: ContextTypes.DEFAULT_TYPE, battle
             battle_log.append("🎁 Гринч украл твоё зелье и выпил его! +15 HP Гринчу")
             return
     
-    elif grinch["type"] == "berserk" and grinch["hp"] < grinch["max_hp"] * 0.4:
+    grinch_attacks = []
+    
+    if grinch["type"] == "berserk" and grinch["hp"] < grinch["max_hp"] * 0.4:
         grinch_attacks.append(("💢 Безумная ярость!", "strong"))
         grinch_attacks.append(("💢 Безумная ярость!", "strong"))
     
@@ -2184,24 +1404,18 @@ async def grinch_turn(update: Update, context: ContextTypes.DEFAULT_TYPE, battle
         base_damage = int(base_damage * 1.5)
     elif attack_type == "magic":
         base_damage = int(base_damage * 1.3)
-        # Шанс наложить эффект
         if random.random() < 0.25:
             player["statuses"]["bleeding"] = 2
             battle_log.append("🩸 Ты истекаешь кровью!")
     
-    # Учёт защиты игрока
     damage = max(5, base_damage - player["defense"] // 3)
     
-    # Усиление в ярости
     if grinch["rage_mode"]:
         damage = int(damage * 1.3)
     
-    # Применение урона
     player["hp"] -= damage
-    
     battle_log.append(f"🎄 {attack_name} -{damage} HP")
     
-    # Особые эффекты атак
     if "summon" in attack_type:
         extra_damage = random.randint(5, 15)
         player["hp"] -= extra_damage
@@ -2214,10 +1428,9 @@ async def grinch_turn(update: Update, context: ContextTypes.DEFAULT_TYPE, battle
     elif "aoe" in attack_type:
         if player.get("statuses", {}).get("shielded", 0) > 0:
             reduced_damage = max(1, damage // 2)
-            player["hp"] += damage - reduced_damage  # Откатываем часть урона
+            player["hp"] += damage - reduced_damage
             battle_log.append(f"🛡️ Щит поглотил часть урона! Осталось -{reduced_damage} HP")
 
-# Новая функция: неожиданные события
 def trigger_unexpected_event(battle_state):
     events = [
         ("🎅 Внезапно появился эльф и подкинул зелье!", 
@@ -2229,43 +1442,19 @@ def trigger_unexpected_event(battle_state):
         ("🍪 С неба упало волшебное печенье!", 
          lambda p, g: p["items"].update({"cookie": p["items"]["cookie"] + 1})),
         
-        ("🎄 Ёлка загорелась, отвлекая обоих!", 
-         lambda p, g: (p["mana"] + 10, g["attack"] - 5)),
-        
-        ("❄️ Снежная буря усилилась! Видимость нулевая!", 
-         lambda p, g: (p["dodge_chance"] + 0.1, g["attack"] - 3)),
-        
         ("🎁 Один из украденных подарков взорвался!", 
          lambda p, g: g["hp"] - random.randint(10, 20)),
-        
-        ("✨ Рождественская магия витает в воздухе!", 
-         lambda p, g: (p["mana"] + 20, p["attack"] + 5)),
-        
-        ("🃏 Гринч нашёл колоду карт и отвлёкся!", 
-         lambda p, g: g["statuses"].update({"confused": 2})),
-        
-        ("🧦 Носки Гринча промокли! Он в плохом настроении!", 
-         lambda p, g: g["attack"] + 10),
-        
-        ("🌟 Падающая звезда исполнила желание!", 
-         lambda p, g: random.choice([
-             (p["hp"] + 30, p["mana"] + 20),
-             (g["hp"] - 25),
-             (p["items"]["bomb"] + 1)
-         ]))
     ]
     
     event_text, effect = random.choice(events)
     battle_state["unexpected_events"].append(event_text)
     
-    # Применяем эффект
     player = battle_state["player"]
     grinch = battle_state["grinch"]
     
     result = effect(player, grinch)
     if result:
         if isinstance(result, tuple):
-            # Множественные эффекты
             for res in result:
                 if isinstance(res, int):
                     if res > 0:
@@ -2278,17 +1467,11 @@ def trigger_unexpected_event(battle_state):
             else:
                 grinch["hp"] -= abs(result)
 
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
-
-# Новая функция: обработка статусов
 def process_player_statuses(player, battle_log):
-    # Уменьшаем длительность статусов
     for status in list(player["statuses"].keys()):
         if player["statuses"][status] > 0:
             player["statuses"][status] -= 1
     
-    # Эффект кровотечения
     if player.get("statuses", {}).get("bleeding", 0) > 0:
         bleed_damage = random.randint(3, 8)
         player["hp"] -= bleed_damage
@@ -2298,16 +1481,13 @@ def process_player_statuses(player, battle_log):
         ]
         battle_log.append(random.choice(bleed_messages))
     
-    # Эффект усиления атаки
     if player.get("statuses", {}).get("enchanted", 0) > 0:
         player["attack"] += 5
     
-    # Эффект щита (уменьшается со временем)
     if player.get("statuses", {}).get("shielded", 0) == 0 and player["defense"] > 15:
         player["defense"] = max(15, player["defense"] - 5)
         battle_log.append("🛡️ Защита ослабла")
 
-# Новая функция: расчёт урона
 def calculate_damage(player, grinch, attack_type):
     base_damage = player["attack"]
     
@@ -2320,10 +1500,8 @@ def calculate_damage(player, grinch, attack_type):
     elif attack_type == "critical":
         damage = int(base_damage * 2.0) + random.randint(5, 15)
     
-    # Учёт защиты
     damage = max(5, damage - grinch["defense"] // 4)
     
-    # Усиление от статуса
     if player.get("statuses", {}).get("enchanted", 0) > 0:
         damage = int(damage * 1.2)
     
@@ -2331,98 +1509,49 @@ def calculate_damage(player, grinch, attack_type):
 
 async def battle_victory(update: Update, context: ContextTypes.DEFAULT_TYPE, battle_log):
     user = update.effective_user
-    user_data[str(user.id)]["grinch_wins"] += 1
-    user_data[str(user.id)]["games_won"] += 1
+    user_data[str(user.id)]["grinch_wins"] = user_data[str(user.id)].get("grinch_wins", 0) + 1
+    user_data[str(user.id)]["games_won"] = user_data[str(user.id)].get("games_won", 0) + 1
     
-    # Бонусы в зависимости от типа Гринча
     grinch_type = context.user_data["battle_state"]["grinch"]["type"]
-    type_bonuses = {
-        "thief": {"points": 120, "exp": 60, "item": "stolen_gift"},
-        "berserk": {"points": 150, "exp": 80, "item": "berserk_horn"},
-        "mage": {"points": 140, "exp": 70, "item": "magic_staff"},
-        "tank": {"points": 130, "exp": 75, "item": "tank_shield"},
-        "trickster": {"points": 110, "exp": 65, "item": "joker_card"}
+    type_names = {
+        "thief": "Воpa подарков",
+        "berserk": "Берсерка",
+        "mage": "Мага",
+        "tank": "Танка",
+        "trickster": "Трикстера"
     }
     
-    bonus = type_bonuses.get(grinch_type, {"points": 100, "exp": 50, "item": "default"})
-    
-    # Бонус за скорость
-    round_count = context.user_data["battle_state"]["round"]
-    speed_bonus = max(0, 100 - round_count * 5)
-    
-    # Бонус за комбо
-    combo = context.user_data["battle_state"].get("combo", 0)
-    combo_bonus = combo * 10
-    
-    total_points = bonus["points"] + speed_bonus + combo_bonus
-    total_exp = bonus["exp"] + combo_bonus // 2
-    
-    add_santa_points(user.id, total_points, context)
-    add_reindeer_exp(user.id, total_exp)
-    
-    # Добавляем достижения
-    if user_data[str(user.id)]["grinch_wins"] >= 3:
-        add_achievement(user.id, "grinch_slayer")
-    if user_data[str(user.id)]["grinch_wins"] >= 10:
-        add_achievement(user.id, "grinch_terminator")
-    if round_count <= 5:
-        add_achievement(user.id, "speed_runner")
-    if combo >= 5:
-        add_achievement(user.id, "combo_master")
-    
     victory_messages = [
-        f"🎉 <b>ПОБЕДА НАД {context.user_data['battle_state']['grinch']['name'].upper()}!</b> 🎉",
+        f"🎉 <b>ПОБЕДА НАД {type_names.get(grinch_type, 'Гринчем').upper()}!</b> 🎉",
         f"✨ <b>Гринч повержен! Рождество спасено!</b> ✨",
-        f"🏆 <b>Триумф! {grinch_type} Гринч побеждён!</b> 🏆"
+        f"🏆 <b>Триумф! Гринч побеждён!</b> 🏆"
     ]
     
-    victory_text = f"""
-    {random.choice(victory_messages)}
-
-    ✨ <b>Награды:</b>
-    • +{total_points} очков Санты
-    • +{total_exp} опыта оленёнку
-    • Получен предмет: {bonus['item']}
-    • Бонус за скорость: +{speed_bonus}
-    • Бонус за комбо: +{combo_bonus}
-
-    📊 <b>Статистика битвы:</b>
-    • Пройдено раундов: {round_count}
-    • Максимальное комбо: {combo}
-    • Оставшееся HP: {context.user_data['battle_state']['player']['hp']}
-    • Использовано предметов: {3 - sum(context.user_data['battle_state']['player']['items'].values())}
-
-    🎮 <b>Достижения:</b>
-    {'✅ Защитник Рождества' if user_data[str(user.id)]["grinch_wins"] >= 3 else '◻️'}
-    {'✅ Истребитель Гринчей' if user_data[str(user.id)]["grinch_wins"] >= 10 else '◻️'}
-    {'✅ Скоростной боец' if round_count <= 5 else '◻️'}
-    {'✅ Мастер комбо' if combo >= 5 else '◻️'}
-
-    Гринч повержен, и Новый Год спасён! 🎄
-    """
-        
-    # Добавляем редкий предмет в инвентарь
-    if bonus["item"] not in user_data[str(user.id)]["rare_items"]:
-        user_data[str(user.id)]["rare_items"].append(bonus["item"])
+    round_count = context.user_data["battle_state"]["round"]
+    combo = context.user_data["battle_state"].get("combo", 0)
     
+    victory_text = f"""
+{random.choice(victory_messages)}
+
+📊 <b>Статистика битвы:</b>
+• Пройдено раундов: {round_count}
+• Максимальное комбо: {combo}
+• Оставшееся HP: {context.user_data['battle_state']['player']['hp']}
+• Использовано предметов: {3 - sum(context.user_data['battle_state']['player']['items'].values())}
+
+Поздравляю с победой! 🎄
+"""
+        
     keyboard = [
         [InlineKeyboardButton("🎮 Сразиться снова", callback_data="game_grinch")],
-        [InlineKeyboardButton("🎪 Другой тип Гринча", callback_data="battle_random_type")],
-        [InlineKeyboardButton("🏆 Мои достижения", callback_data="profile")],
         [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
     ]
     
     await update.callback_query.edit_message_text(victory_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
     
 async def battle_defeat(update: Update, context: ContextTypes.DEFAULT_TYPE, battle_log):
-    user = update.effective_user
-    points_lost = random.randint(30, 60)
-    add_santa_points(user.id, -points_lost, context)
-    
     defeat_text = f"""
 💔 <b>ПОРАЖЕНИЕ...</b>
-
-😔 <b>Потеряно:</b> {points_lost} очков Санты
 
 📜 <b>Ход битвы:</b>
 """ + "\n".join(battle_log[-5:]) + f"""
@@ -2436,6 +1565,18 @@ async def battle_defeat(update: Update, context: ContextTypes.DEFAULT_TYPE, batt
     ]
     
     await update.callback_query.edit_message_text(defeat_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def show_battle_result(update: Update, context: ContextTypes.DEFAULT_TYPE, result_text):
+    keyboard = [
+        [InlineKeyboardButton("🎮 Сразиться снова", callback_data="game_grinch")],
+        [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
+    ]
+    
+    await update.callback_query.edit_message_text(
+        result_text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 # -------------------------------------------------------------------
 # 🎓 НОВОГОДНИЙ КВИЗ
@@ -2459,8 +1600,8 @@ async def game_quiz_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 <b>Правила:</b>
 • 5 случайных вопросов
-• За каждый правильный ответ - 30 очков
-• Идеальный результат - 150 очков + достижение!
+• За каждый правильный ответ - 10 очков
+• Идеальный результат - 50 очков
 • Узнавай интересные факты
 
 <b>💡 Совет:</b> Внимательно читай вопросы и варианты ответов
@@ -2534,16 +1675,14 @@ async def quiz_answer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     })
     
     if is_correct:
-        quiz_data["score"] += 1
-        result_text = "✅ <b>Правильно!</b>"
+        quiz_data["score"] += 10
+        result_text = "✅ <b>Правильно!</b> +10 очков"
     else:
         correct_answer = question_data["options"][question_data["correct"]]
         result_text = f"❌ <b>Неправильно!</b> Правильный ответ: {correct_answer}"
     
-    # Показываем факт
     result_text += f"\n\n💡 {question_data['fact']}"
     
-    # Кнопка для продолжения
     keyboard = [[InlineKeyboardButton("➡️ Следующий вопрос", callback_data="quiz_next")]]
     
     await q.edit_message_text(
@@ -2562,44 +1701,52 @@ async def quiz_next_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quiz_data = context.user_data["quiz"]
     score = quiz_data["score"]
-    total = len(quiz_data["questions"])
+    total = len(quiz_data["questions"]) * 10
     
     user = update.effective_user
     init_user_data(user.id)
     
-    # Начисление очков в зависимости от результата
-    points_per_question = 30
-    total_points = score * points_per_question
+    correct_answers = sum(1 for answer in quiz_data["answers"] if answer["is_correct"])
+    total_questions = len(quiz_data["questions"])
     
-    if score == total:
-        add_achievement(user.id, "quiz_master")
+    # Обновляем статистику
+    user_data[str(user.id)]["quiz_points"] = user_data[str(user.id)].get("quiz_points", 0) + score
+    user_data[str(user.id)]["total_quiz_correct"] = user_data[str(user.id)].get("total_quiz_correct", 0) + correct_answers
+    user_data[str(user.id)]["total_quiz_played"] = user_data[str(user.id)].get("total_quiz_played", 0) + 1
+    
+    if correct_answers == total_questions:
+        user_data[str(user.id)]["quiz_wins"] = user_data[str(user.id)].get("quiz_wins", 0) + 1
         result_message = "🎉 <b>ИДЕАЛЬНО! Ты настоящий новогодний эксперт!</b>"
-    elif score >= total * 0.7:
+    elif correct_answers >= total_questions * 0.7:
         result_message = "🎊 <b>Отличный результат! Ты хорошо знаешь новогодние традиции!</b>"
-    elif score >= total * 0.5:
+    elif correct_answers >= total_questions * 0.5:
         result_message = "👍 <b>Хороший результат! Есть что вспомнить о Новом годе!</b>"
     else:
         result_message = "📚 <b>Неплохо! Новогодние традиции — это интересно!</b>"
     
-    add_santa_points(user.id, total_points, context)
-    add_reindeer_exp(user.id, score * 10)
-    user_data[str(user.id)]["games_won"] += 1
-    user_data[str(user.id)]["quiz_wins"] = user_data[str(user.id)].get("quiz_wins", 0) + 1
+    # Сохраняем отвеченные вопросы
+    for question in quiz_data["questions"]:
+        if question["id"] not in user_data[str(user.id)]["answered_quiz_questions"]:
+            user_data[str(user.id)]["answered_quiz_questions"].append(question["id"])
+    
+    save_data({"users": user_data, "rooms": load_data().get("rooms", {})})
     
     final_text = f"""
 🎓 <b>Новогодний Квиз завершён!</b>
 
 {result_message}
 
-📊 <b>Твой результат:</b> {score}/{total}
-✨ <b>Получено очков:</b> {total_points}
-🦌 <b>Опыта оленёнку:</b> {score * 10}
+📊 <b>Твой результат:</b>
+• Правильных ответов: {correct_answers}/{total_questions}
+• Получено очков: {score}/{total}
+• Всего очков: {user_data[str(user.id)]['quiz_points']}
 
 Хочешь попробовать ещё раз?
 """
     
     keyboard = [
         [InlineKeyboardButton("🔄 Пройти ещё раз", callback_data="game_quiz")],
+        [InlineKeyboardButton("📊 Топ игроков", callback_data="quiz_top")],
         [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
     ]
     
@@ -2607,6 +1754,64 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         final_text,
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer()
+    
+    # Собираем статистику всех игроков
+    player_stats = []
+    
+    for user_id_str, user_info in user_data.items():
+        quiz_points = user_info.get("quiz_points", 0)
+        quiz_wins = user_info.get("quiz_wins", 0)
+        total_correct = user_info.get("total_quiz_correct", 0)
+        total_played = user_info.get("total_quiz_played", 0)
+        
+        if total_played > 0:
+            accuracy = (total_correct / (total_played * 5)) * 100 if total_played > 0 else 0
+            player_stats.append({
+                "name": user_info.get("name", "Неизвестный"),
+                "username": user_info.get("username", ""),
+                "points": quiz_points,
+                "wins": quiz_wins,
+                "accuracy": accuracy,
+                "played": total_played
+            })
+    
+    # Сортируем по очкам
+    player_stats.sort(key=lambda x: x["points"], reverse=True)
+    
+    top_text = "🏆 <b>Топ игроков квиза</b>\n\n"
+    
+    if not player_stats:
+        top_text += "Пока никто не играл в квиз. Будь первым! 🎄\n\n"
+    else:
+        medals = ["🥇", "🥈", "🥉"]
+        for i, player in enumerate(player_stats[:10]):
+            if i < 3:
+                medal = medals[i]
+            else:
+                medal = f"{i+1}."
+            
+            display_name = player["name"][:20] + "..." if len(player["name"]) > 20 else player["name"]
+            username_display = f"(@{player['username']})" if player["username"] and player["username"] != "без username" else ""
+            
+            top_text += f"{medal} {display_name} {username_display}\n"
+            top_text += f"   Очки: {player['points']} | Побед: {player['wins']} | Точность: {player['accuracy']:.1f}%\n\n"
+    
+    top_text += "🎮 <b>Общая статистика:</b>\n"
+    top_text += f"• Всего игроков: {len(player_stats)}\n"
+    top_text += f"• Всего сыграно квизов: {sum(p['played'] for p in player_stats)}\n"
+    top_text += f"• Средняя точность: {sum(p['accuracy'] for p in player_stats) / len(player_stats) if player_stats else 0:.1f}%"
+    
+    await update.callback_query.edit_message_text(
+        top_text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🎮 Играть в квиз", callback_data="game_quiz")],
+            [InlineKeyboardButton("⬅️ Назад", callback_data="mini_games")]
+        ])
     )
 
 # -------------------------------------------------------------------
@@ -2618,67 +1823,42 @@ async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     user_info = user_data[str(user.id)]
     
-    # Информация об оленях
-    reindeer_level = user_info["reindeer_level"]
-    reindeer_exp = user_info["reindeer_exp"]
-    current_skin = user_info["reindeer_skin"]
-    
-    REINDEER_STAGES = [
-        "🦌 Новорождённый оленёнок (0 ур.)",
-        "🦌💨 Оленёк-исследователь (1 ур.)", 
-        "🦌✨ Сверкающий олень (2 ур.)",
-        "🦌🌟 Звёздный олень (3 ур.)",
-        "🦌🔥 Легендарный олень (4 ур.)",
-        "🦌💫 Божественный олень (5 ур.)"
-    ]
-    
-    reindeer_text = REINDEER_STAGES[reindeer_level] if reindeer_level < len(REINDEER_STAGES) else REINDEER_STAGES[-1]
-    
-    # Информация о скинах
-    skin_display = {
-        "default": "🦌 Обычный",
-        "rainbow": "🌈 Радужный", 
-        "ice_spirit": "❄️ Ледяной дух",
-        "golden": "🌟 Золотой",
-        "crystal": "💎 Хрустальный",
-        "cosmic": "🌌 Космический",
-        "phantom": "👻 Фантомный"
-    }
-    
-    skin_text = skin_display.get(current_skin, "🦌 Обычный")
-    
     # Статистика квиза
-    answered_questions = len(user_info.get("answered_quiz_questions", []))
-    total_questions = len(NEW_YEAR_QUIZ)
+    quiz_points = user_info.get("quiz_points", 0)
+    quiz_wins = user_info.get("quiz_wins", 0)
+    total_correct = user_info.get("total_quiz_correct", 0)
+    total_played = user_info.get("total_quiz_played", 0)
+    accuracy = (total_correct / (total_played * 5)) * 100 if total_played > 0 else 0
     
-    # Находим комнату пользователя
-    data = load_data()
-    user_room = None
-    for code, room in data["rooms"].items():
-        if str(user.id) in room["members"]:
-            user_room = code
-            break
+    # Статистика битв с Гринчем
+    grinch_fights = user_info.get("grinch_fights", 0)
+    grinch_wins = user_info.get("grinch_wins", 0)
+    win_rate = (grinch_wins / grinch_fights * 100) if grinch_fights > 0 else 0
     
     profile_text = f"""
 🎅 <b>Профиль игрока</b> @{user.username if user.username else user.first_name}
 
-💫 <b>Очки Санты:</b> {user_info['santa_points']}
-🦌 <b>Твой олень:</b> {reindeer_text}
-🎨 <b>Вид:</b> {skin_text}
-📊 <b>Опыт:</b> {reindeer_exp}/{(reindeer_level + 1) * 100}
+🎓 <b>Статистика квиза:</b>
+• Очки: {quiz_points}
+• Побед: {quiz_wins}
+• Сыграно игр: {total_played}
+• Правильных ответов: {total_correct}
+• Точность: {accuracy:.1f}%
 
-🎖 <b>Достижения:</b> {len(user_info['achievements'])}
-🎮 <b>Побед в играх:</b> {user_info['games_won']}
-🏔 <b>Пройдено квестов:</b> {user_info['quests_finished']}
-⚔️ <b>Побед над Гринчем:</b> {user_info['grinch_wins']}
+⚔️ <b>Битвы с Гринчем:</b>
+• Всего битв: {grinch_fights}
+• Побед: {grinch_wins}
+• Процент побед: {win_rate:.1f}%
 
-💎 <b>Редких предметов:</b> {len(user_info['rare_items'])}
-🎓 <b>Побед в квизе:</b> {user_info.get('quiz_wins', 0)}
-📝 <b>Отвечено вопросов:</b> {answered_questions}/{total_questions}
+🎖 <b>Достижения:</b> {len(user_info.get('achievements', []))}
 """
-
-    if user_room:
-        profile_text += f"\n🏠 <b>Текущая комната:</b> {user_room}"
+    
+    # Находим комнату пользователя
+    data = load_data()
+    for code, room in data["rooms"].items():
+        if str(user.id) in room["members"]:
+            profile_text += f"\n🏠 <b>Текущая комната:</b> {code}"
+            break
     
     if update.callback_query:
         await update.callback_query.edit_message_text(
@@ -2882,23 +2062,21 @@ async def admin_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     data = load_data()
     total_users = len(user_data)
-    active_users = sum(1 for user_id, data in user_data.items() if data.get("total_points", 0) > 100)
     
     total_games_won = sum(data.get("games_won", 0) for data in user_data.values())
     total_grinch_wins = sum(data.get("grinch_wins", 0) for data in user_data.values())
-    total_quests_finished = sum(data.get("quests_finished", 0) for data in user_data.values())
+    total_quiz_points = sum(data.get("quiz_points", 0) for data in user_data.values())
     
     stats_text = f"""
 📊 <b>АДМИН СТАТИСТИКА</b>
 
 👥 <b>Пользователи:</b>
 • Всего пользователей: {total_users}
-• Активных игроков: {active_users}
 
 🎮 <b>Общая игровая статистика:</b>
 • Всего побед в играх: {total_games_won}
 • Побед над Гринчем: {total_grinch_wins}
-• Пройдено квестов: {total_quests_finished}
+• Всего очков в квизе: {total_quiz_points}
 
 🏠 <b>Статистика комнат:</b>
 """
@@ -2911,10 +2089,6 @@ async def admin_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • Всего комнат: {total_rooms}
 • Активных игр: {active_rooms}
 • Всего участников: {total_participants}
-
-💫 <b>Экономика игры:</b>
-• Всего выдано очков: {sum(data.get("total_points", 0) for data in user_data.values())}
-• Средний уровень оленей: {sum(data.get("reindeer_level", 0) for data in user_data.values()) / total_users if total_users > 0 else 0:.1f}
 """
 
     await update.callback_query.edit_message_text(
@@ -2943,7 +2117,6 @@ async def broadcast_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 1. <b>Всем пользователям</b> - всем, кто когда-либо использовал бота
 2. <b>Участникам комнат</b> - только тем, кто в активных комнатах
-3. <b>Конкретной комнате</b> - выбери комнату из списка
 
 💡 <b>Совет:</b> Используй рассылку для важных объявлений или поздравлений!
 """
@@ -3005,7 +2178,7 @@ async def handle_broadcast_message(update: Update, context: ContextTypes.DEFAULT
                     parse_mode='HTML'
                 )
                 sent_count += 1
-                await asyncio.sleep(0.1)  # Задержка чтобы не превысить лимиты
+                await asyncio.sleep(0.1)
             except Exception as e:
                 failed_count += 1
                 print(f"Ошибка отправки пользователю {user_id}: {e}")
@@ -3068,9 +2241,8 @@ def enhanced_menu_keyboard(admin=False):
         [InlineKeyboardButton("🎁 Ввести пожелание", callback_data="wish")],
         [InlineKeyboardButton("🎮 Мини-игры", callback_data="mini_games"),
          InlineKeyboardButton("🎁 Идеи подарков", callback_data="gift_ideas_menu")],
-        [InlineKeyboardButton("👤 Профиль", callback_data="profile")],  # Убрана вторая кнопка
-        [InlineKeyboardButton("📋 Участники комнаты", callback_data="room_members"),
-         InlineKeyboardButton("🏆 Топ комнаты", callback_data="room_top_players")],
+        [InlineKeyboardButton("👤 Профиль", callback_data="profile")],
+        [InlineKeyboardButton("📋 Участники комнаты", callback_data="room_members")],
         [InlineKeyboardButton("🎅 Присоединиться к комнате", callback_data="join_room_menu")],
     ]
     
@@ -3124,30 +2296,6 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
                 ])
             )
 
-        elif q.data == "gift_personalized_menu":
-            await gift_personalized_menu(update, context)
-            
-        elif q.data == "gift_random_personalized":
-            # Случайные параметры
-            recipients = ["мужчина", "женщина", "ребенок", "семья", "друг", "коллега", "любой"]
-            occasions = ["день рождения", "новый год", "8 марта", "23 февраля", "годовщина", "новоселье", "любой"]
-            recipient = random.choice(recipients)
-            occasion = random.choice(occasions)
-            idea = generate_personalized_gift_idea(recipient_type=recipient, occasion=occasion)
-            await q.edit_message_text(
-                f"🎭 <b>Персонализированная идея:</b>\n\n"
-                f"👤 Для: {recipient}\n"
-                f"🎉 Повод: {occasion}\n\n"
-                f"{idea}\n\n"
-                f"💡 <b>Подсказка:</b> Можно уточнить критерии через меню!",
-                parse_mode='HTML',
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔄 Другая случайная", callback_data="gift_random_personalized")],
-                    [InlineKeyboardButton("🎭 Уточнить критерии", callback_data="gift_personalized_menu")],
-                    [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
-                ])
-            )
-
         elif q.data.startswith("gift_theme_"):
             theme = q.data.replace("gift_theme_", "")
             if theme == "random":
@@ -3176,17 +2324,15 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
             
         elif q.data.startswith("gift_emergency_"):
             if "today" in q.data or "tomorrow" in q.data or "week" in q.data:
-                # Обработка сроков
                 if "today" in q.data:
                     time_limit = "сегодня"
                 elif "tomorrow" in q.data:
                     time_limit = "завтра"
                 else:
                     time_limit = "неделя"
-                budget = 2000  # дефолтный бюджет
+                budget = 2000
                 idea = emergency_gift_idea(budget, time_limit)
             else:
-                # Обработка бюджета
                 if "2000" in q.data:
                     budget = 2000
                 elif "3000" in q.data:
@@ -3276,18 +2422,14 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
         elif q.data == "profile":
             await enhanced_profile(update, context)
             
+        elif q.data == "quiz_top":
+            await show_quiz_top(update, context)
             
         elif q.data == "room_members":
             await show_room_members(update, context)
             
         elif q.data.startswith("room_members_"):
             await show_specific_room_members(update, context)
-            
-        elif q.data == "room_top_players":
-            await show_room_top_players(update, context)
-            
-        elif q.data.startswith("room_top_"):
-            await show_specific_room_top(update, context)
             
         elif q.data == "mini_games":
             await mini_game_menu(update, context)
@@ -3305,7 +2447,7 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
             await broadcast_all_users(update, context)
             
         elif q.data == "broadcast_rooms":
-            await broadcast_all_users(update, context)  # Временно, можно расширить
+            await broadcast_all_users(update, context)
             
         elif q.data == "broadcast_cancel":
             await broadcast_cancel(update, context)
