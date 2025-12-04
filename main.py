@@ -2007,7 +2007,7 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     congratulated_333 = user_data[str(user.id)].get("congratulated_333", False)
     just_reached_333 = False
     
-    if not congratulated_333 and new_quiz_points >= 333 and old_quiz_points < 333:
+    if not congratulated_333 and new_quiz_points >= 20 and old_quiz_points < 20:
         just_reached_333 = True
         user_data[str(user.id)]["congratulated_333"] = True
         
