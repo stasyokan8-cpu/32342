@@ -556,6 +556,25 @@ async def wish_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     await update.callback_query.answer()
+    
+    # 🔥 ДОБАВЬ ПРОВЕРКУ: Сначала проверяем, находится ли пользователь в комнате
+    data = load_data()
+    user = update.effective_user
+    user_in_room = False
+    
+    for code, room in data["rooms"].items():
+        if str(user.id) in room["members"]:
+            user_in_room = True
+            break
+    
+    if not user_in_room:
+        await update.callback_query.edit_message_text(
+            "❌ Для написания пожелания нужно сначала присоединиться к комнате!\n"
+            "Используй кнопку 'Присоединиться к комнате' в меню.",
+            reply_markup=enhanced_menu_keyboard(is_admin(update))
+        )
+        return
+    
     context.user_data["wish_mode"] = True
     
     wish_instructions = """
@@ -580,6 +599,7 @@ async def wish_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🎁 Примеры пожеланий", callback_data="wish_examples")],
+            [InlineKeyboardButton("❌ Отменить ввод", callback_data="wish_cancel")],  # <-- ДОБАВЬ ЭТУ КНОПКУ
             [InlineKeyboardButton("⬅️ Назад в меню", callback_data="back_menu")]
         ])
     )
@@ -629,6 +649,25 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = load_data()
     user = update.effective_user
     admin = is_admin(update)
+    
+     # 🔥 ДОБАВЬ ЭТУ ПРОВЕРКУ: Если включен режим пожелания, но пользователь не в комнате
+    if context.user_data.get("wish_mode"):
+        # Проверяем, находится ли пользователь в какой-либо комнате
+        user_in_room = False
+        for code, room in data["rooms"].items():
+            if str(user.id) in room["members"]:
+                user_in_room = True
+                break
+        
+        if not user_in_room:
+            # Сбрасываем режим и показываем сообщение
+            context.user_data["wish_mode"] = False
+            await update.message.reply_text(
+                "❌ Для написания пожелания нужно сначала присоединиться к комнате!\n"
+                "Используй кнопку 'Присоединиться к комнате' в меню.",
+                reply_markup=enhanced_menu_keyboard(admin)
+            )
+            return
 
     # Обработка пожелания
     if context.user_data.get("wish_mode"):
@@ -734,6 +773,24 @@ https://t.me/{(await context.bot.get_me()).username}?start=join_{code}
         )
 
 async def join_room_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
+        
+    data = load_data()
+    user = update.effective_user
+    
+    # Получаем код из сообщения
+    if update.message.text.startswith('/join_room'):
+        parts = update.message.text.split()
+        code = parts[1].strip().upper() if len(parts) > 1 else None
+    else:
+        code = update.message.text.strip().upper()
+    
+    # 🔥 ВАЖНО: Очищаем ВСЕ режимы при присоединении к комнате
+    context.user_data["join_mode"] = False
+    context.user_data["wish_mode"] = False  # <-- ДОБАВЬ ЭТУ СТРОКУ
+    context.user_data["search_mode"] = False  # <-- И ЭТУ тоже на всякий случай
+    
     await update.callback_query.answer()
     
     join_instructions = """
@@ -3054,6 +3111,11 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
             await create_room(update, context)
             
         elif q.data == "back_menu":
+            # 🔥 ВАЖНО: Очищаем все режимы при возврате в меню
+            context.user_data["wish_mode"] = False
+            context.user_data["join_mode"] = False
+            context.user_data["search_mode"] = False
+            
             admin = is_admin(update)
             await q.edit_message_text(
                 "🎄 Возвращаемся в главное меню...",
@@ -3063,7 +3125,14 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
         else:
             # Обработка игровых callback'ов
             await game_handlers(update, context)
-       
+        
+        elif q.data == "wish_cancel":  # <-- ДОБАВЬ ЭТОТ ОБРАБОТЧИК
+            context.user_data["wish_mode"] = False
+            admin = is_admin(update)
+            await q.edit_message_text(
+                "❌ Ввод пожелания отменен.",
+                reply_markup=enhanced_menu_keyboard(admin)
+            )
         
     except Exception as e:
         print(f"Ошибка в обработчике callback: {e}")
