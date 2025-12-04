@@ -7,6 +7,8 @@ import string
 import asyncio
 import os
 import sys
+import urllib.request
+import tempfile
 from datetime import datetime, timedelta, timezone
 from telegram import (
     Update, InlineKeyboardMarkup, InlineKeyboardButton
@@ -20,6 +22,7 @@ from telegram.ext import (
 TOKEN = os.environ.get("TELEGRAM_TOKEN", "8299215190:AAEqLfMOTjywx_jOeT-Kv1I5oKdgbdWzN9Y")
 ADMIN_USERNAME = "BeellyKid"
 DATA_FILE = "santa_data.json"
+CONGRATS_AUDIO_URL = https://eu.hitmo-top.com/get/music/20250812/JELEKTROSLABOST_-_Olenijj_Penis_79409713.mp3
 
 print(f"🎄 Запуск Secret Santa Bot v3.5 на Replit...")
 print(f"Токен: {'✅ Установлен' if TOKEN else '❌ НЕ НАЙДЕН!'}")
@@ -101,7 +104,8 @@ def init_user_data(user_id):
             "username": "",
             "answered_quiz_questions": [],
             "total_quiz_correct": 0,
-            "total_quiz_played": 0
+            "total_quiz_played": 0,
+            "congratulated_333": False  # <-- ДОБАВЬТЕ ЭТУ СТРОЧКУ
         }
 
 def add_achievement(user_id, achievement_key):
@@ -1978,11 +1982,23 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     correct_answers = sum(1 for answer in quiz_data["answers"] if answer["is_correct"])
     total_questions = len(quiz_data["questions"])
     
+    # 🔥 ПРОВЕРКА ДОСТИЖЕНИЯ 333 БАЛЛОВ
+    old_quiz_points = user_data[str(user.id)].get("quiz_points", 0)
+    new_quiz_points = old_quiz_points + score
+    
     # Обновляем статистику в глобальной переменной
-    user_data[str(user.id)]["quiz_points"] = user_data[str(user.id)].get("quiz_points", 0) + score
+    user_data[str(user.id)]["quiz_points"] = new_quiz_points
     user_data[str(user.id)]["total_quiz_correct"] = user_data[str(user.id)].get("total_quiz_correct", 0) + correct_answers
     user_data[str(user.id)]["total_quiz_played"] = user_data[str(user.id)].get("total_quiz_played", 0) + 1
     
+    # Проверяем, достиг ли пользователь 333 баллов
+    congratulated_333 = user_data[str(user.id)].get("congratulated_333", False)
+    just_reached_333 = False
+    
+    if not congratulated_333 and new_quiz_points >= 333 and old_quiz_points < 333:
+        just_reached_333 = True
+        user_data[str(user.id)]["congratulated_333"] = True
+        
     if correct_answers == total_questions:
         user_data[str(user.id)]["quiz_wins"] = user_data[str(user.id)].get("quiz_wins", 0) + 1
         result_message = "🎉 <b>ИДЕАЛЬНО! Ты настоящий новогодний эксперт!</b>"
@@ -2014,6 +2030,18 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         print(f"❌ Ошибка сохранения данных: {e}")
     
+    # 🔥 ПОДГОТОВКА ПОЗДРАВЛЕНИЯ С 333 БАЛЛАМИ
+    congrats_text = ""
+    if just_reached_333:
+        congrats_text = f"""
+🎺 <b>🎶 МУЗЫКАЛЬНАЯ НАГРАДА! 🎶</b>
+
+🏆 <b>ТЫ ДОСТИГ 333 БАЛЛОВ В КВИЗЕ!</b>
+
+Это особое достижение! Ты настоящий эксперт по новогодним традициям!
+Тебе открывается секретная музыкальная награда...
+"""
+    
     # Формируем итоговое сообщение
     final_text = f"""
 🎓 <b>НОВОГОДНИЙ КВИЗ ЗАВЕРШЁН!</b>
@@ -2030,6 +2058,7 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • Правильных ответов за всё время: {user_data[str(user.id)]['total_quiz_correct']}
 • Побед (идеальных результатов): {user_data[str(user.id)].get('quiz_wins', 0)}
 
+{congrats_text if congrats_text else ''}
 Хочешь попробовать ещё раз?
 """
     
@@ -2053,6 +2082,29 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
+    
+    # 🔥 ОТПРАВКА МУЗЫКАЛЬНОГО ФАЙЛА ПРИ 333 БАЛЛАХ
+    if just_reached_333:
+        await send_333_congrats_audio(update, context, user.id)
+    
+    # Очищаем данные квиза из контекста
+    if "quiz" in context.user_data:
+        del context.user_data["quiz"]
+
+async def send_333_congrats_audio(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
+    """Отправка музыкального файла при достижении 333 баллов"""
+    try:
+        # Способ 1: Отправка по URL
+        if CONGRATS_AUDIO_URL.startswith("http"):
+            # Если это URL
+            await context.bot.send_audio(
+                chat_id=user_id,
+                audio=CONGRATS_AUDIO_URL,
+                caption="🎶 Твоя награда за 333 балла в квизе! Поздравляем! 🏆",
+                title="Музыкальная награда за 333 балла",
+                performer="Secret Santa Bot",
+                parse_mode='HTML'
+            )
     
     # Очищаем данные квиза из контекста
     if "quiz" in context.user_data:
@@ -2153,6 +2205,10 @@ async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_played = user_info.get("total_quiz_played", 0)
     accuracy = (total_correct / (total_played * 5)) * 100 if total_played > 0 else 0
     
+    # Проверка достижения 333 баллов
+    has_333_achievement = quiz_points >= 333
+    congratulated_333 = user_info.get("congratulated_333", False)
+    
     # Статистика битв с Гринчем
     grinch_fights = user_info.get("grinch_fights", 0)
     grinch_wins = user_info.get("grinch_wins", 0)
@@ -2167,6 +2223,8 @@ async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • Сыграно игр: {total_played}
 • Правильных ответов: {total_correct}
 • Точность: {accuracy:.1f}%
+{'' if not has_333_achievement else '• 🏆 Достижение 333 баллов: ✅ Получено!'}
+{'' if has_333_achievement and not congratulated_333 else ''}
 
 ⚔️ <b>Битвы с Гринчем:</b>
 • Всего битв: {grinch_fights}
@@ -2195,7 +2253,6 @@ async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='HTML',
             reply_markup=back_to_menu_keyboard()
         )
-
 # -------------------------------------------------------------------
 # ⚙️ РАЗДЕЛ: АДМИН-ПАНЕЛЬ
 # -------------------------------------------------------------------
