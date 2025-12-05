@@ -1173,8 +1173,14 @@ async def epic_grinch_battle(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_data[str(user.id)]["grinch_fights"] = user_data[str(user.id)].get("grinch_fights", 0) + 1
     
     # 🔥 ДОБАВЬТЕ СОХРАНЕНИЕ ДАННЫХ
-    data = load_all_data()
-    save_all_data(data)
+    try:
+        data = load_all_data()
+        # Обновляем данные пользователя в загруженных данных
+        data["users"][user_id_str] = user_data[user_id_str]
+        save_all_data(data)
+        print(f"✅ Статистика битвы обновлена: {user_id_str} - {user_data[user_id_str]['grinch_fights']} битв")
+    except Exception as e:
+        print(f"❌ Ошибка сохранения статистики битвы: {e}")
     
     user = update.effective_user
     init_user_data(user.id)
@@ -1721,9 +1727,15 @@ async def battle_victory(update: Update, context: ContextTypes.DEFAULT_TYPE, bat
     user_data[user_id_str]["grinch_wins"] += 1
     user_data[user_id_str]["games_won"] += 1
     
-    # 🔥 СОХРАНЯЕМ ДАННЫЕ
-    data = load_all_data()
-    save_all_data(data)
+    # 🔥 СОХРАНЯЕМ ДАННЫЕ В ФАЙЛ
+    try:
+        data = load_all_data()
+        # Обновляем данные пользователя в загруженных данных
+        data["users"][user_id_str] = user_data[user_id_str]
+        save_all_data(data)
+        print(f"✅ Статистика битвы сохранена для пользователя {user_id_str}: {user_data[user_id_str]['grinch_wins']} побед")
+    except Exception as e:
+        print(f"❌ Ошибка сохранения статистики битвы: {e}")
     
     grinch_type = context.user_data["battle_state"]["grinch"]["type"]
     type_names = {
@@ -2356,12 +2368,18 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # -------------------------------------------------------------------
 async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    
+    # 🔥 ЗАГРУЖАЕМ ДАННЫЕ ИЗ ФАЙЛА
     data = load_all_data()
     users = data.get("users", {})
-    user_info = users.get(str(user.id), {})
-    init_user_data(user.id)
+    user_id_str = str(user.id)
     
-    user_info = user_data[str(user.id)]
+    # Если пользователя нет в данных, инициализируем
+    if user_id_str not in users:
+        init_user_data(user.id)
+        users = data.get("users", {})  # Обновляем данные
+    
+    user_info = users.get(user_id_str, {})
     
     # Статистика квиза
     quiz_points = user_info.get("quiz_points", 0)
@@ -2374,7 +2392,7 @@ async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     has_333_achievement = quiz_points >= 333
     congratulated_333 = user_info.get("congratulated_333", False)
     
-    # Статистика битв с Гринчем
+    # 🔥 СТАТИСТИКА БИТВ С ГРИНЧЕМ (загружаем из сохраненных данных)
     grinch_fights = user_info.get("grinch_fights", 0)
     grinch_wins = user_info.get("grinch_wins", 0)
     win_rate = (grinch_wins / grinch_fights * 100) if grinch_fights > 0 else 0
@@ -2400,7 +2418,6 @@ async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 """
     
     # Находим комнату пользователя
-    data = load_all_data()
     for code, room in data["rooms"].items():
         if str(user.id) in room["members"]:
             profile_text += f"\n🏠 <b>Текущая комната:</b> {code}"
