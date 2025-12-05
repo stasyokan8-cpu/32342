@@ -2026,59 +2026,63 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     score = quiz_data["score"]
     total = len(quiz_data["questions"]) * 10
     
-    # 🔥 ИСПРАВЛЕНИЕ: Получаем пользователя правильно
+    # Получаем пользователя
     if update.callback_query:
         user = update.callback_query.from_user
     elif update.message:
         user = update.message.from_user
-    elif update.effective_user:
-        user = update.effective_user
     else:
-        # Если не можем получить пользователя, показываем ошибку
-        if update.callback_query:
-            await update.callback_query.edit_message_text(
-                "❌ Ошибка: не удалось определить пользователя. Попробуйте начать квиз заново.",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🎮 Начать квиз", callback_data="game_quiz")]
-                ])
-            )
+        user = update.effective_user
+    
+    if not user or not hasattr(user, 'id'):
+        await update.callback_query.answer("❌ Ошибка: не удалось определить пользователя.", show_alert=True)
         return
     
-    # Проверяем, что user.id существует
-    if not hasattr(user, 'id') or not user.id:
-        if update.callback_query:
-            await update.callback_query.edit_message_text(
-                "❌ Ошибка: не удалось определить ID пользователя.",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🎮 Начать квиз", callback_data="game_quiz")]
-                ])
-            )
-        return
+    # 🔥 ВАЖНО: Загружаем данные из файла
+    data = load_all_data()
     
-    init_user_data(user.id)
+    # 🔥 ИНИЦИАЛИЗИРУЕМ пользователя в загруженных данных
+    user_id_str = str(user.id)
+    if user_id_str not in data["users"]:
+        data["users"][user_id_str] = {
+            "achievements": [],
+            "games_won": 0,
+            "grinch_fights": 0,
+            "grinch_wins": 0,
+            "quiz_points": 0,
+            "quiz_wins": 0,
+            "name": user.full_name,
+            "username": user.username or "без username",
+            "answered_quiz_questions": [],
+            "total_quiz_correct": 0,
+            "total_quiz_played": 0,
+            "congratulated_333": False
+        }
+    
+    user_info = data["users"][user_id_str]
     
     correct_answers = sum(1 for answer in quiz_data["answers"] if answer["is_correct"])
     total_questions = len(quiz_data["questions"])
     
     # 🔥 ПРОВЕРКА ДОСТИЖЕНИЯ 333 БАЛЛОВ
-    old_quiz_points = user_data[str(user.id)].get("quiz_points", 0)
+    old_quiz_points = user_info.get("quiz_points", 0)
     new_quiz_points = old_quiz_points + score
     
-    # Обновляем статистику в глобальной переменной
-    user_data[str(user.id)]["quiz_points"] = new_quiz_points
-    user_data[str(user.id)]["total_quiz_correct"] = user_data[str(user.id)].get("total_quiz_correct", 0) + correct_answers
-    user_data[str(user.id)]["total_quiz_played"] = user_data[str(user.id)].get("total_quiz_played", 0) + 1
+    # Обновляем статистику
+    user_info["quiz_points"] = new_quiz_points
+    user_info["total_quiz_correct"] = user_info.get("total_quiz_correct", 0) + correct_answers
+    user_info["total_quiz_played"] = user_info.get("total_quiz_played", 0) + 1
     
     # Проверяем, достиг ли пользователь 333 баллов
-    congratulated_333 = user_data[str(user.id)].get("congratulated_333", False)
+    congratulated_333 = user_info.get("congratulated_333", False)
     just_reached_333 = False
     
     if not congratulated_333 and new_quiz_points >= 333 and old_quiz_points < 333:
         just_reached_333 = True
-        user_data[str(user.id)]["congratulated_333"] = True
+        user_info["congratulated_333"] = True
         
     if correct_answers == total_questions:
-        user_data[str(user.id)]["quiz_wins"] = user_data[str(user.id)].get("quiz_wins", 0) + 1
+        user_info["quiz_wins"] = user_info.get("quiz_wins", 0) + 1
         result_message = "🎉 <b>ИДЕАЛЬНО! Ты настоящий новогодний эксперт!</b>"
     elif correct_answers >= total_questions * 0.7:
         result_message = "🎊 <b>Отличный результат! Ты хорошо знаешь новогодние традиции!</b>"
@@ -2090,28 +2094,20 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Сохраняем отвеченные вопросы
     for answer in quiz_data["answers"]:
         question_id = answer.get("question_id")
-        if question_id and question_id not in user_data[str(user.id)]["answered_quiz_questions"]:
-            user_data[str(user.id)]["answered_quiz_questions"].append(question_id)
+        if question_id and question_id not in user_info["answered_quiz_questions"]:
+            user_info["answered_quiz_questions"].append(question_id)
     
-    # 🔥 ВАЖНО: Сохраняем данные правильно
-    # Загружаем текущие данные из файла
-    file_data = load_all_data()
+    # 🔥 ОБНОВЛЯЕМ ГЛОБАЛЬНУЮ ПЕРЕМЕННУЮ
+    global user_data
+    user_data[user_id_str] = user_info
     
-    # Обновляем только данные текущего пользователя
-    file_data["users"][str(user.id)] = user_data[str(user.id)]
-    
-    # Сохраняем обратно в файл
+    # Сохраняем данные в файл
     try:
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(file_data, f, indent=4, ensure_ascii=False)
+        save_all_data(data)
         print(f"✅ Данные квиза сохранены для пользователя {user.id}")
     except Exception as e:
         print(f"❌ Ошибка сохранения данных: {e}")
     
-    data = load_all_data()
-    save_all_data(data)
-    print(f"✅ Данные квиза сохранены для пользователя {user.id}")
-
     # 🔥 ПОДГОТОВКА ПОЗДРАВЛЕНИЯ С 333 БАЛЛАМИ
     congrats_text = ""
     if just_reached_333:
@@ -2133,12 +2129,12 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📊 <b>ТВОЙ РЕЗУЛЬТАТ:</b>
 • Правильных ответов: {correct_answers}/{total_questions}
 • Получено очков: {score}/{total}
-• Всего очков за все игры: {user_data[str(user.id)]['quiz_points']}
+• Всего очков за все игры: {user_info['quiz_points']}
 
 🎄 <b>Статистика:</b>
-• Сыграно квизов: {user_data[str(user.id)]['total_quiz_played']}
-• Правильных ответов за всё время: {user_data[str(user.id)]['total_quiz_correct']}
-• Побед (идеальных результатов): {user_data[str(user.id)].get('quiz_wins', 0)}
+• Сыграно квизов: {user_info['total_quiz_played']}
+• Правильных ответов за всё время: {user_info['total_quiz_correct']}
+• Побед (идеальных результатов): {user_info.get('quiz_wins', 0)}
 
 {congrats_text if congrats_text else ''}
 Хочешь попробовать ещё раз?
@@ -2150,7 +2146,6 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("⬅️ В меню", callback_data="back_menu")]
     ]
     
-    # Проверяем, есть ли callback_query
     if update.callback_query:
         await update.callback_query.edit_message_text(
             final_text,
@@ -2158,7 +2153,6 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     else:
-        # На всякий случай, если нет callback_query
         await update.message.reply_text(
             final_text,
             parse_mode='HTML',
@@ -2234,7 +2228,7 @@ async def send_333_congrats_audio(update: Update, context: ContextTypes.DEFAULT_
 async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     
-    # Загружаем актуальные данные
+    # 🔥 ЗАГРУЖАЕМ АКТУАЛЬНЫЕ ДАННЫЕ ИЗ ФАЙЛА
     data = load_all_data()
     users = data.get("users", {})
     
@@ -2258,16 +2252,18 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
         total_played = user_info.get("total_quiz_played", 0)
         quiz_points = user_info.get("quiz_points", 0)
         
-        # Включаем в топ только тех, кто набрал хоть какие-то очки
-        if total_played > 0 or quiz_points > 0:
+        # 🔥 ВКЛЮЧАЕМ В ТОП ВСЕХ, КТО ИГРАЛ ХОТЬ РАЗ
+        if total_played > 0:
             quiz_wins = user_info.get("quiz_wins", 0)
             total_correct = user_info.get("total_quiz_correct", 0)
             total_played = user_info.get("total_quiz_played", 0)
             
             # Вычисляем точность
             accuracy = 0
-            if total_played > 0:
-                accuracy = (total_correct / (total_played * 5)) * 100
+            if total_played > 0 and total_correct > 0:
+                # Всего возможных ответов: 5 вопросов на игру
+                total_possible_answers = total_played * 5
+                accuracy = (total_correct / total_possible_answers) * 100
             
             player_stats.append({
                 "id": user_id_str,
@@ -2280,7 +2276,7 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "correct": total_correct
             })
     
-    # Сортируем по очкам (по убыванию), затем по победам
+    # 🔥 СОРТИРУЕМ по очкам (по убыванию), затем по победам
     player_stats.sort(key=lambda x: (x["points"], x["wins"]), reverse=True)
     
     top_text = "🏆 <b>ТОП ИГРОКОВ КВИЗА</b>\n\n"
@@ -2308,7 +2304,7 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
     top_text += f"• Всего правильных ответов: {sum(p['correct'] for p in player_stats)}\n"
     
     if player_stats:
-        avg_accuracy = sum(p['accuracy'] for p in player_stats) / len(player_stats)
+        avg_accuracy = sum(p['accuracy'] for p in player_stats) / len(player_stats) if len(player_stats) > 0 else 0
         top_text += f"• Средняя точность: {avg_accuracy:.1f}%"
     else:
         top_text += "• Средняя точность: 0%"
@@ -3296,11 +3292,11 @@ async def enhanced_inline_handler(update: Update, context: ContextTypes.DEFAULT_
         elif q.data == "profile":
             await enhanced_profile(update, context)
             
-        elif q.data == "quiz_top":
-            await show_quiz_top(update, context)
-
         elif q.data == "quiz_finish_now":
-            await finish_quiz(update, context)   
+            await finish_quiz(update, context)  
+            
+        elif q.data == "quiz_top":
+            await show_quiz_top(update, context) 
         
         elif q.data == "quiz_next":
             await quiz_next_handler(update, context)
