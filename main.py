@@ -1177,27 +1177,47 @@ async def epic_grinch_battle(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await q.answer()
     
     user = update.effective_user
-    user_id_str = str(user.id)  # 🔥 СОЗДАЕМ ПЕРЕМЕННУЮ ЗДЕСЬ
+    user_id_str = str(user.id)
     
-    # 🔥 УБЕДИТЕСЬ, что эти строки есть:
-    init_user_data(user.id)
-    global user_data  # ДОБАВЬТЕ ЭТУ СТРОКУ
+    # 🔥 ВАЖНО: Загружаем актуальные данные из файла
+    data = load_all_data()
     
-    # Увеличиваем счетчик битв
-    if "grinch_fights" not in user_data[user_id_str]:
-        user_data[user_id_str]["grinch_fights"] = 0
-    user_data[user_id_str]["grinch_fights"] += 1
+    # 🔥 ИНИЦИАЛИЗИРУЕМ пользователя в загруженных данных
+    if user_id_str not in data["users"]:
+        data["users"][user_id_str] = {
+            "achievements": [],
+            "games_won": 0,
+            "grinch_fights": 0,
+            "grinch_wins": 0,
+            "quiz_points": 0,
+            "quiz_wins": 0,
+            "name": user.full_name,
+            "username": user.username or "без username",
+            "answered_quiz_questions": [],
+            "total_quiz_correct": 0,
+            "total_quiz_played": 0,
+            "congratulated_333": False
+        }
     
-    # 🔥 СОХРАНЯЕМ ДАННЫЕ
-    try:
-        data = load_all_data()
-        data["users"][user_id_str] = user_data[user_id_str]
-        save_all_data(data)
-        print(f"✅ Статистика битвы обновлена: {user_id_str} - {user_data[user_id_str]['grinch_fights']} битв")
-    except Exception as e:
-        print(f"❌ Ошибка сохранения статистики битвы в epic_grinch_battle: {e}")
+    # 🔥 Убеждаемся, что все поля существуют
+    if "grinch_fights" not in data["users"][user_id_str]:
+        data["users"][user_id_str]["grinch_fights"] = 0
+    if "grinch_wins" not in data["users"][user_id_str]:
+        data["users"][user_id_str]["grinch_wins"] = 0
     
-    # Типы Гринча (остальной код без изменений)
+    # 🔥 Увеличиваем счетчик битв
+    data["users"][user_id_str]["grinch_fights"] += 1
+    
+    # 🔥 Сохраняем данные
+    save_all_data(data)
+    
+    print(f"✅ Статистика битвы обновлена: {user_id_str} - {data['users'][user_id_str]['grinch_fights']} битв")
+    
+    # Обновляем глобальную переменную
+    global user_data
+    user_data[user_id_str] = data["users"][user_id_str]
+    
+    # Остальной код функции остается без изменений...
     grinch_types = {
         "thief": {"name": "🎁 Вор подарков", "hp": 100, "attack": 25, "trait": "Может украсть предмет"},
         "berserk": {"name": "😠 Берсерк-Гринч", "hp": 140, "attack": 35, "trait": "Сильнее при низком HP"},
@@ -1719,34 +1739,46 @@ async def battle_victory(update: Update, context: ContextTypes.DEFAULT_TYPE, bat
     user = update.effective_user
     user_id_str = str(user.id)
     
-    # 🔥 ПРОВЕРКА И ИНИЦИАЛИЗАЦИЯ
-    init_user_data(user.id)
-    global user_data
+    # 🔥 ВАЖНО: Загружаем актуальные данные из файла
+    data = load_all_data()
     
-    # 🔥 ПРОВЕРЯЕМ, ЧТО ПОЛЬЗОВАТЕЛЬ ЕСТЬ В СЛОВАРЕ
-    if user_id_str not in user_data:
-        print(f"⚠️ Предупреждение: пользователь {user_id_str} не найден в user_data, создаем...")
-        init_user_data(user.id)
+    # 🔥 ИНИЦИАЛИЗИРУЕМ пользователя в загруженных данных
+    if user_id_str not in data["users"]:
+        data["users"][user_id_str] = {
+            "achievements": [],
+            "games_won": 0,
+            "grinch_fights": 0,
+            "grinch_wins": 0,
+            "quiz_points": 0,
+            "quiz_wins": 0,
+            "name": user.full_name,
+            "username": user.username or "без username",
+            "answered_quiz_questions": [],
+            "total_quiz_correct": 0,
+            "total_quiz_played": 0,
+            "congratulated_333": False
+        }
     
-    # 🔥 ИНИЦИАЛИЗИРУЕМ ЗНАЧЕНИЯ, ЕСЛИ ИХ НЕТ
-    if "grinch_wins" not in user_data[user_id_str]:
-        user_data[user_id_str]["grinch_wins"] = 0
-    if "games_won" not in user_data[user_id_str]:
-        user_data[user_id_str]["games_won"] = 0
+    # 🔥 Убеждаемся, что все поля существуют
+    if "grinch_wins" not in data["users"][user_id_str]:
+        data["users"][user_id_str]["grinch_wins"] = 0
+    if "games_won" not in data["users"][user_id_str]:
+        data["users"][user_id_str]["games_won"] = 0
+    if "grinch_fights" not in data["users"][user_id_str]:
+        data["users"][user_id_str]["grinch_fights"] = 0
     
     # 🔥 УВЕЛИЧИВАЕМ СЧЕТЧИКИ
-    user_data[user_id_str]["grinch_wins"] += 1
-    user_data[user_id_str]["games_won"] += 1
+    data["users"][user_id_str]["grinch_wins"] += 1
+    data["users"][user_id_str]["games_won"] += 1
     
     # 🔥 СОХРАНЯЕМ ДАННЫЕ В ФАЙЛ
-    try:
-        data = load_all_data()
-        # Обновляем данные пользователя в загруженных данных
-        data["users"][user_id_str] = user_data[user_id_str]
-        save_all_data(data)
-        print(f"✅ Статистика битвы сохранена для пользователя {user_id_str}: {user_data[user_id_str]['grinch_wins']} побед")
-    except Exception as e:
-        print(f"❌ Ошибка сохранения статистики битвы в battle_victory: {e}")
+    save_all_data(data)
+    
+    print(f"✅ Статистика победы сохранена для пользователя {user_id_str}: {data['users'][user_id_str]['grinch_wins']} побед")
+    
+    # Обновляем глобальную переменную
+    global user_data
+    user_data[user_id_str] = data["users"][user_id_str]
     
     grinch_type = context.user_data["battle_state"]["grinch"]["type"]
     type_names = {
@@ -1774,6 +1806,11 @@ async def battle_victory(update: Update, context: ContextTypes.DEFAULT_TYPE, bat
 • Максимальное комбо: {combo}
 • Оставшееся HP: {context.user_data['battle_state']['player']['hp']}
 • Использовано предметов: {3 - sum(context.user_data['battle_state']['player']['items'].values())}
+
+🏅 <b>Твоя статистика:</b>
+• Всего битв с Гринчем: {data['users'][user_id_str]['grinch_fights']}
+• Побед над Гринчем: {data['users'][user_id_str]['grinch_wins']}
+• Общих побед в играх: {data['users'][user_id_str]['games_won']}
 
 Поздравляю с победой! 🎄
 """
@@ -2379,26 +2416,34 @@ async def show_quiz_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # -------------------------------------------------------------------
 async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    user_id_str = str(user.id)  # 🔥 СОЗДАЕМ ПЕРЕМЕННУЮ
-    
-    # 🔥 ИНИЦИАЛИЗИРУЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ
-    init_user_data(user.id)
-    global user_data
+    user_id_str = str(user.id)
     
     # 🔥 ЗАГРУЖАЕМ АКТУАЛЬНЫЕ ДАННЫЕ ИЗ ФАЙЛА
-    try:
-        data = load_all_data()
-        # Обновляем глобальные данные из файла
-        if user_id_str in data.get("users", {}):
-            user_data[user_id_str] = data["users"][user_id_str]
-    except Exception as e:
-        print(f"❌ Ошибка загрузки данных для профиля: {e}")
+    data = load_all_data()
     
-    user_info = user_data.get(user_id_str, {})
+    if user_id_str not in data.get("users", {}):
+        # Если пользователя нет, создаем запись
+        init_user_data(user.id)
+        data = load_all_data()  # Перезагружаем данные
+    
+    user_info = data["users"].get(user_id_str, {})
     
     # 🔥 УБЕДИТЕСЬ, ЧТО ВСЕ ПОЛЯ СУЩЕСТВУЮТ
     if not user_info:
-        user_info = {}
+        user_info = {
+            "achievements": [],
+            "games_won": 0,
+            "grinch_fights": 0,
+            "grinch_wins": 0,
+            "quiz_points": 0,
+            "quiz_wins": 0,
+            "name": user.full_name,
+            "username": user.username or "без username",
+            "answered_quiz_questions": [],
+            "total_quiz_correct": 0,
+            "total_quiz_played": 0,
+            "congratulated_333": False
+        }
     
     # Статистика квиза
     quiz_points = user_info.get("quiz_points", 0)
@@ -2407,11 +2452,7 @@ async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_played = user_info.get("total_quiz_played", 0)
     accuracy = (total_correct / (total_played * 5)) * 100 if total_played > 0 else 0
     
-    # Проверка достижения 333 баллов
-    has_333_achievement = quiz_points >= 333
-    congratulated_333 = user_info.get("congratulated_333", False)
-    
-    # 🔥 СТАТИСТИКА БИТВ С ГРИНЧЕМ
+    # Статистика битв с Гринчем
     grinch_fights = user_info.get("grinch_fights", 0)
     grinch_wins = user_info.get("grinch_wins", 0)
     win_rate = (grinch_wins / grinch_fights * 100) if grinch_fights > 0 else 0
@@ -2425,18 +2466,18 @@ async def enhanced_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • Сыграно игр: {total_played}
 • Правильных ответов: {total_correct}
 • Точность: {accuracy:.1f}%
-{'' if not has_333_achievement else '• 🏆 Достижение 333 баллов: ✅ Получено!'}
 
 ⚔️ <b>Битвы с Гринчем:</b>
 • Всего битв: {grinch_fights}
 • Побед: {grinch_wins}
 • Процент побед: {win_rate:.1f}%
 
-🎖 <b>Достижения:</b> {len(user_info.get('achievements', []))}
+🏆 <b>Общая статистика:</b>
+• Всего побед в играх: {user_info.get('games_won', 0)}
+• Достижений: {len(user_info.get('achievements', []))}
 """
     
     # Находим комнату пользователя
-    data = load_all_data()
     for code, room in data["rooms"].items():
         if str(user.id) in room["members"]:
             profile_text += f"\n🏠 <b>Текущая комната:</b> {code}"
