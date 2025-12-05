@@ -37,23 +37,25 @@ user_data = {}
 
 def load_all_data():
     """Загружает все данные из файла и обновляет глобальную переменную user_data"""
-    global user_data  # ДОБАВЬТЕ ЭТУ СТРОЧКУ
+    global user_data  # Важно: обновляем глобальную переменную
+    
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
             if "users" not in data:
                 data["users"] = {}
-            user_data = data["users"]  # УДАЛИТЕ "global user_data" из этой строки
+            # 🔥 ОБНОВЛЯЕМ ГЛОБАЛЬНУЮ ПЕРЕМЕННУЮ
+            user_data = data["users"]  
             return data
     except FileNotFoundError:
         default_data = {"rooms": {}, "users": {}}
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(default_data, f, indent=4, ensure_ascii=False)
-        user_data = {}
+        user_data = {}  # 🔥 Инициализируем пустым словарем
         return default_data
     except Exception as e:
         print(f"Ошибка загрузки данных: {e}")
-        user_data = {}
+        user_data = {}  # 🔥 Инициализируем пустым словарем
         return {"rooms": {}, "users": {}}
 
 def save_all_data(data):
@@ -87,7 +89,7 @@ def back_to_menu_keyboard(admin=False):
 # -------------------------------------------------------------------
 def init_user_data(user_id):
     """Инициализирует данные пользователя в глобальной переменной user_data"""
-    global user_data  # ДОБАВЬТЕ ЭТУ СТРОЧКУ
+    global user_data
     user_id_str = str(user_id)
     
     # Загружаем актуальные данные из файла
@@ -1165,6 +1167,16 @@ async def epic_grinch_battle(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await q.answer()
     
     user = update.effective_user
+    # 🔥 УБЕДИТЕСЬ, что эти строки есть:
+    init_user_data(user.id)
+    global user_data  # ДОБАВЬТЕ ЭТУ СТРОКУ
+    user_data[str(user.id)]["grinch_fights"] = user_data[str(user.id)].get("grinch_fights", 0) + 1
+    
+    # 🔥 ДОБАВЬТЕ СОХРАНЕНИЕ ДАННЫХ
+    data = load_all_data()
+    save_all_data(data)
+    
+    user = update.effective_user
     init_user_data(user.id)
     user_data[str(user.id)]["grinch_fights"] = user_data[str(user.id)].get("grinch_fights", 0) + 1
     
@@ -1688,8 +1700,30 @@ def calculate_damage(player, grinch, attack_type):
 
 async def battle_victory(update: Update, context: ContextTypes.DEFAULT_TYPE, battle_log):
     user = update.effective_user
-    user_data[str(user.id)]["grinch_wins"] = user_data[str(user.id)].get("grinch_wins", 0) + 1
-    user_data[str(user.id)]["games_won"] = user_data[str(user.id)].get("games_won", 0) + 1
+    user_id_str = str(user.id)
+    
+    # 🔥 ПРОВЕРКА И ИНИЦИАЛИЗАЦИЯ
+    init_user_data(user.id)
+    global user_data
+    
+    # 🔥 ПРОВЕРЯЕМ, ЧТО ПОЛЬЗОВАТЕЛЬ ЕСТЬ В СЛОВАРЕ
+    if user_id_str not in user_data:
+        print(f"⚠️ Предупреждение: пользователь {user_id_str} не найден в user_data, создаем...")
+        init_user_data(user.id)
+    
+    # 🔥 ИНИЦИАЛИЗИРУЕМ ЗНАЧЕНИЯ, ЕСЛИ ИХ НЕТ
+    if "grinch_wins" not in user_data[user_id_str]:
+        user_data[user_id_str]["grinch_wins"] = 0
+    if "games_won" not in user_data[user_id_str]:
+        user_data[user_id_str]["games_won"] = 0
+    
+    # 🔥 УВЕЛИЧИВАЕМ СЧЕТЧИКИ
+    user_data[user_id_str]["grinch_wins"] += 1
+    user_data[user_id_str]["games_won"] += 1
+    
+    # 🔥 СОХРАНЯЕМ ДАННЫЕ
+    data = load_all_data()
+    save_all_data(data)
     
     grinch_type = context.user_data["battle_state"]["grinch"]["type"]
     type_names = {
